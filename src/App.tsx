@@ -96,8 +96,45 @@ export default function App() {
   });
   const [newKeyName, setNewKeyName] = useState('');
   const [newKeyValue, setNewKeyValue] = useState('');
+  const [keyStatus, setKeyStatus] = useState<Record<string, 'checking' | 'connected' | 'failed' | 'idle'>>({});
+  const [isSyncing, setIsSyncing] = useState(false);
+
+  const syncKeysToR2 = async (keysToSync = savedKeys) => {
+    setIsSyncing(true);
+    try {
+      await fetch('/api/storage/gemini_keys.json', {
+        method: 'PUT',
+        body: JSON.stringify(keysToSync),
+      });
+    } catch (error) {
+      console.error("Failed to sync keys to R2:", error);
+    } finally {
+      setIsSyncing(false);
+    }
+  };
+
+  const loadKeysFromR2 = async () => {
+    try {
+      const response = await fetch('/api/storage/gemini_keys.json');
+      if (response.ok) {
+        const data = await response.json();
+        if (Array.isArray(data)) {
+          setSavedKeys(data);
+          localStorage.setItem('dashbro_gemini_keys', JSON.stringify(data));
+        }
+      }
+    } catch (error) {
+      console.error("Failed to load keys from R2:", error);
+    }
+  };
+
+  const checkKeyConnection = async (id: string, key: string) => {
+    setKeyStatus(prev => ({ ...prev, [id]: 'checking' }));
+    const isValid = await ai.validateKey(key);
+    setKeyStatus(prev => ({ ...prev, [id]: isValid ? 'connected' : 'failed' }));
+  };
   
-  const saveNewKey = () => {
+  const saveNewKey = async () => {
     if (!newKeyName.trim() || !newKeyValue.trim()) return;
     const keyObj = { id: Date.now().toString(), name: newKeyName, key: newKeyValue };
     const updated = [...savedKeys, keyObj];
@@ -106,6 +143,9 @@ export default function App() {
     setNewKeyName('');
     setNewKeyValue('');
     
+    // Sync to R2
+    await syncKeysToR2(updated);
+    
     // If no active key, set this as active
     if (!geminiKey) {
       setGeminiKey(newKeyValue);
@@ -113,10 +153,11 @@ export default function App() {
     }
   };
 
-  const deleteKey = (id: string) => {
+  const deleteKey = async (id: string) => {
     const updated = savedKeys.filter(k => k.id !== id);
     setSavedKeys(updated);
     localStorage.setItem('dashbro_gemini_keys', JSON.stringify(updated));
+    await syncKeysToR2(updated);
   };
 
   const selectKey = (key: string) => {
@@ -139,6 +180,7 @@ export default function App() {
     if (token) {
       handleLogin(token);
     }
+    loadKeysFromR2();
   }, []);
 
   const handleLogin = async (inputToken: string) => {
@@ -826,7 +868,16 @@ export default function App() {
 
                 {savedKeys.length > 0 && (
                   <div>
-                    <h4 className="text-sm font-semibold text-white/80 mb-3">Saved Keys</h4>
+                    <div className="flex items-center justify-between mb-3">
+                      <h4 className="text-sm font-semibold text-white/80">Saved Keys</h4>
+                      <button 
+                        onClick={() => syncKeysToR2()}
+                        disabled={isSyncing}
+                        className="text-[10px] uppercase tracking-widest text-cf-orange hover:text-cf-orange/80 disabled:opacity-50"
+                      >
+                        {isSyncing ? 'Syncing...' : 'Sync to R2'}
+                      </button>
+                    </div>
                     <div className="space-y-2 max-h-48 overflow-y-auto pr-2 custom-scrollbar">
                       {savedKeys.map((k) => (
                         <div 
@@ -846,18 +897,32 @@ export default function App() {
                               <div className="w-4 h-4 rounded-full border border-white/20" />
                             )}
                             <div>
-                              <p className="text-sm font-medium">{k.name}</p>
+                              <div className="flex items-center gap-2">
+                                <p className="text-sm font-medium">{k.name}</p>
+                                {keyStatus[k.id] === 'connected' && <span className="w-1.5 h-1.5 rounded-full bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.6)]" />}
+                                {keyStatus[k.id] === 'failed' && <span className="w-1.5 h-1.5 rounded-full bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.6)]" />}
+                                {keyStatus[k.id] === 'checking' && <Loader2 className="w-3 h-3 animate-spin text-white/40" />}
+                              </div>
                               <p className="text-[10px] text-white/30 font-mono">
                                 {k.key.substring(0, 6)}...{k.key.substring(k.key.length - 4)}
                               </p>
                             </div>
                           </div>
-                          <button 
-                            onClick={(e) => { e.stopPropagation(); deleteKey(k.id); }}
-                            className="p-2 text-white/20 hover:text-red-400 hover:bg-red-400/10 rounded-lg transition-all"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
+                          <div className="flex items-center gap-1">
+                            <button 
+                              onClick={(e) => { e.stopPropagation(); checkKeyConnection(k.id, k.key); }}
+                              className="p-2 text-white/20 hover:text-cf-orange hover:bg-cf-orange/10 rounded-lg transition-all"
+                              title="Test Connection"
+                            >
+                              <Zap className="w-4 h-4" />
+                            </button>
+                            <button 
+                              onClick={(e) => { e.stopPropagation(); deleteKey(k.id); }}
+                              className="p-2 text-white/20 hover:text-red-400 hover:bg-red-400/10 rounded-lg transition-all"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </div>
                         </div>
                       ))}
                     </div>
