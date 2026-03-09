@@ -170,11 +170,13 @@ export default function App() {
   const [aiMessages, setAiMessages] = useState<{ role: 'user' | 'ai'; content: string }[]>([]);
   const [aiInput, setAiInput] = useState('');
   const [aiLoading, setAiLoading] = useState(false);
+  const [chatContext, setChatContext] = useState<string>('');
 
   // Editor State
   const [editingWorker, setEditingWorker] = useState<any>(null);
   const [workerCode, setWorkerCode] = useState('');
   const [workerName, setWorkerName] = useState('');
+  const [workerPrompt, setWorkerPrompt] = useState('');
 
   useEffect(() => {
     if (token) {
@@ -256,7 +258,8 @@ export default function App() {
     try {
       const context = `Current Account: ${selectedAccount?.name}. Current View: ${view}. 
       Workers: ${workers.map(w => w.id).join(', ')}. 
-      Zones: ${zones.map(z => z.name).join(', ')}.`;
+      Zones: ${zones.map(z => z.name).join(', ')}.
+      Active Context: ${chatContext || "None"}`;
       
       const response = await ai.chatWithAI(userMsg, context, geminiKey);
       setAiMessages(prev => [...prev, { role: 'ai', content: response }]);
@@ -281,6 +284,7 @@ export default function App() {
       }
 
       const scriptText = typeof content === 'string' ? content : JSON.stringify(content, null, 2);
+      setChatContext(`Analyzing worker "${scriptName}". Code:\n${scriptText}`);
       const response = await ai.analyzeWorker(scriptText, geminiKey);
       setAiMessages(prev => [...prev, { role: 'ai', content: response }]);
     } catch (err: any) {
@@ -499,6 +503,7 @@ export default function App() {
                   <Button onClick={() => {
                     setEditingWorker({});
                     setWorkerName('');
+                    setWorkerPrompt('');
                     setWorkerCode('export default {\n  async fetch(request, env, ctx) {\n    return new Response("Hello World!");\n  },\n};');
                   }}>
                     <Plus className="w-4 h-4" />
@@ -768,19 +773,22 @@ export default function App() {
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
-                  <Button variant="secondary" size="sm" onClick={async () => {
-                    setAiLoading(true);
-                    try {
-                      const code = await ai.generateWorkerCode(workerName || "a simple worker", geminiKey);
-                      setWorkerCode(code);
-                    } finally {
-                      setAiLoading(false);
-                    }
-                  }}>
-                    <Sparkles className="w-4 h-4" />
-                    AI Generate
-                  </Button>
-                  <Button size="sm" onClick={saveWorker}>Save & Deploy</Button>
+                  {!editingWorker.id && (
+                    <Button variant="secondary" size="sm" onClick={async () => {
+                      if (!workerPrompt) return;
+                      setAiLoading(true);
+                      try {
+                        const code = await ai.generateWorkerCode(workerPrompt, geminiKey);
+                        setWorkerCode(code);
+                      } finally {
+                        setAiLoading(false);
+                      }
+                    }} disabled={!workerPrompt || aiLoading}>
+                      <Sparkles className="w-4 h-4" />
+                      AI Generate
+                    </Button>
+                  )}
+                  <Button size="sm" onClick={saveWorker} disabled={loading || aiLoading}>Save & Deploy</Button>
                   <button onClick={() => setEditingWorker(null)} className="p-2 hover:bg-white/5 rounded-full ml-2">
                     <X className="w-5 h-5" />
                   </button>
@@ -788,22 +796,46 @@ export default function App() {
               </div>
 
               <div className="flex-1 flex flex-col min-h-0">
-                <div className="p-4 bg-white/5 border-b border-white/5">
-                  <input 
-                    type="text" 
-                    placeholder="Worker Name (e.g. my-api)"
-                    className="w-full bg-transparent font-mono text-sm focus:outline-none"
-                    value={workerName}
-                    onChange={(e) => setWorkerName(e.target.value)}
-                    disabled={!!editingWorker.id}
-                  />
+                <div className="p-4 bg-white/5 border-b border-white/5 space-y-3">
+                  <div className="flex items-center gap-3">
+                    <span className="text-xs font-bold text-white/30 uppercase tracking-widest w-24">Name</span>
+                    <input 
+                      type="text" 
+                      placeholder="Worker Name (e.g. my-api)"
+                      className="flex-1 bg-transparent font-mono text-sm focus:outline-none"
+                      value={workerName}
+                      onChange={(e) => setWorkerName(e.target.value)}
+                      disabled={!!editingWorker.id}
+                    />
+                  </div>
+                  {!editingWorker.id && (
+                    <div className="flex items-start gap-3">
+                      <span className="text-xs font-bold text-white/30 uppercase tracking-widest w-24 mt-2">Prompt</span>
+                      <textarea 
+                        placeholder="Describe what this worker should do... (e.g. 'A worker that redirects all traffic to google.com')"
+                        className="flex-1 bg-white/5 border border-white/10 rounded-lg p-3 text-sm focus:outline-none focus:ring-1 focus:ring-cf-orange/50 resize-none h-20"
+                        value={workerPrompt}
+                        onChange={(e) => setWorkerPrompt(e.target.value)}
+                      />
+                    </div>
+                  )}
                 </div>
-                <textarea 
-                  className="flex-1 w-full bg-transparent p-6 font-mono text-sm resize-none focus:outline-none scrollbar-hide"
-                  value={workerCode}
-                  onChange={(e) => setWorkerCode(e.target.value)}
-                  spellCheck={false}
-                />
+                <div className="flex-1 relative">
+                  <textarea 
+                    className="absolute inset-0 w-full h-full bg-transparent p-6 font-mono text-sm resize-none focus:outline-none scrollbar-hide"
+                    value={workerCode}
+                    onChange={(e) => setWorkerCode(e.target.value)}
+                    spellCheck={false}
+                  />
+                  {aiLoading && (
+                    <div className="absolute inset-0 bg-black/40 backdrop-blur-[1px] flex items-center justify-center z-10">
+                      <div className="flex items-center gap-3 bg-dark-card p-4 rounded-2xl border border-white/10 shadow-2xl">
+                        <Loader2 className="w-5 h-5 animate-spin text-cf-orange" />
+                        <span className="text-sm font-medium">AI is generating code...</span>
+                      </div>
+                    </div>
+                  )}
+                </div>
               </div>
             </motion.div>
           </div>
