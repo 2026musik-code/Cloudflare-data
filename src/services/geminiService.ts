@@ -19,11 +19,11 @@ const getAI = (userKey?: string) => {
   return aiInstance;
 };
 
-export const generateWorkerCode = async (prompt: string, userKey?: string) => {
+export const generateWorkerCode = async (prompt: string, userKey?: string, model: string = "gemini-3-flash-preview") => {
   try {
     const ai = getAI(userKey);
     const response = await ai.models.generateContent({
-      model: "gemini-3-flash-preview",
+      model: model,
       contents: `Generate a Cloudflare Worker script based on this requirement: ${prompt}. 
       Return ONLY the JavaScript code, no markdown formatting if possible, or wrap it in a code block.`,
       config: {
@@ -51,11 +51,11 @@ export const validateKey = async (key: string) => {
   }
 };
 
-export const analyzeWorker = async (code: string, userKey?: string) => {
+export const analyzeWorker = async (code: string, userKey?: string, model: string = "gemini-3-flash-preview") => {
   try {
     const ai = getAI(userKey);
     const response = await ai.models.generateContent({
-      model: "gemini-3-flash-preview",
+      model: model,
       contents: `Analyze this Cloudflare Worker code for security, performance, and best practices:
       
       ${code}
@@ -69,11 +69,11 @@ export const analyzeWorker = async (code: string, userKey?: string) => {
   }
 };
 
-export const chatWithAI = async (message: string, context?: string, userKey?: string) => {
+export const chatWithAI = async (message: string, context?: string, userKey?: string, model: string = "gemini-3-flash-preview") => {
   try {
     const ai = getAI(userKey);
     const response = await ai.models.generateContent({
-      model: "gemini-3-flash-preview",
+      model: model,
       contents: message,
       config: {
         systemInstruction: `You are a Cloudflare expert assistant. You help users manage their Workers and DNS records. 

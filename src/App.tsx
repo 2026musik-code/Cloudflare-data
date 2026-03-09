@@ -98,6 +98,7 @@ export default function App() {
   const [newKeyValue, setNewKeyValue] = useState('');
   const [keyStatus, setKeyStatus] = useState<Record<string, 'checking' | 'connected' | 'failed' | 'idle'>>({});
   const [isSyncing, setIsSyncing] = useState(false);
+  const [selectedModel, setSelectedModel] = useState<string>(localStorage.getItem('gemini_model') || 'gemini-3-flash-preview');
 
   const syncKeysToR2 = async (keysToSync = savedKeys) => {
     setIsSyncing(true);
@@ -271,14 +272,14 @@ export default function App() {
       Zones: ${zones.map(z => z.name).join(', ')}.
       Active Context: ${chatContext || "None"}`;
       
-      const response = await ai.chatWithAI(userMsg, context, geminiKey);
+      const response = await ai.chatWithAI(userMsg, context, geminiKey, selectedModel);
       setAiMessages(prev => [...prev, { role: 'ai', content: response }]);
     } catch (err: any) {
       console.error("AI Chat Error:", err);
       const errorDetail = err.message || "Unknown error";
       setAiMessages(prev => [...prev, { 
         role: 'ai', 
-        content: `Sorry, I encountered an error: **${errorDetail}**. Please check your Gemini API Key in Settings and ensure it has access to the Gemini 3 models.` 
+        content: `Sorry, I encountered an error: **${errorDetail}**. Please check your Gemini API Key in Settings and ensure it has access to the selected model (${selectedModel}).` 
       }]);
     } finally {
       setAiLoading(false);
@@ -300,7 +301,7 @@ export default function App() {
 
       const scriptText = typeof content === 'string' ? content : JSON.stringify(content, null, 2);
       setChatContext(`Analyzing worker "${scriptName}". Code:\n${scriptText}`);
-      const response = await ai.analyzeWorker(scriptText, geminiKey);
+      const response = await ai.analyzeWorker(scriptText, geminiKey, selectedModel);
       setAiMessages(prev => [...prev, { role: 'ai', content: response }]);
     } catch (err: any) {
       console.error("Analysis Error:", err);
@@ -831,7 +832,7 @@ export default function App() {
                               if (!workerPrompt) return;
                               setAiLoading(true);
                               try {
-                                const code = await ai.generateWorkerCode(workerPrompt, geminiKey);
+                                const code = await ai.generateWorkerCode(workerPrompt, geminiKey, selectedModel);
                                 setWorkerCode(code);
                                 setIsCodeGenerated(true);
                               } finally {
@@ -935,6 +936,25 @@ export default function App() {
               </div>
 
               <div className="space-y-6">
+                <div>
+                  <h4 className="text-sm font-semibold text-white/80 mb-4 flex items-center gap-2">
+                    <Cpu className="w-4 h-4 text-cf-orange" />
+                    Select AI Model
+                  </h4>
+                  <select 
+                    className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-cf-orange/50 transition-all appearance-none cursor-pointer"
+                    value={selectedModel}
+                    onChange={(e) => {
+                      setSelectedModel(e.target.value);
+                      localStorage.setItem('gemini_model', e.target.value);
+                    }}
+                  >
+                    <option value="gemini-2.5-flash" className="bg-dark-card">Gemini 2.5 Flash</option>
+                    <option value="gemini-3.1-flash-lite-preview" className="bg-dark-card">Gemini 2.5 Flash Lite</option>
+                    <option value="gemini-3-flash-preview" className="bg-dark-card">Gemini 3 Flash</option>
+                  </select>
+                </div>
+
                 <div>
                   <h4 className="text-sm font-semibold text-white/80 mb-4 flex items-center gap-2">
                     <Plus className="w-4 h-4 text-cf-orange" />
