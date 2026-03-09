@@ -7,7 +7,7 @@ compatibility_date = "2024-03-01"
 
 [[r2_buckets]]
 binding = "STORAGE"
-bucket_name = "dashbro-storage"
+bucket_name = "dashbrostorage"
 
 [site]
 bucket = "./dist"
