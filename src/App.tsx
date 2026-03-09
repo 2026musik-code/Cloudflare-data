@@ -19,7 +19,8 @@ import {
   Code2,
   Sparkles,
   X,
-  Menu
+  Menu,
+  Settings
 } from 'lucide-react';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
@@ -84,6 +85,10 @@ export default function App() {
   
   // Mobile State
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  
+  // Settings State
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [geminiKey, setGeminiKey] = useState(localStorage.getItem('gemini_api_key') || '');
   
   // AI State
   const [aiOpen, setAiOpen] = useState(false);
@@ -177,10 +182,10 @@ export default function App() {
       Workers: ${workers.map(w => w.id).join(', ')}. 
       Zones: ${zones.map(z => z.name).join(', ')}.`;
       
-      const response = await ai.chatWithAI(userMsg, context);
+      const response = await ai.chatWithAI(userMsg, context, geminiKey);
       setAiMessages(prev => [...prev, { role: 'ai', content: response }]);
     } catch (err) {
-      setAiMessages(prev => [...prev, { role: 'ai', content: "Sorry, I encountered an error." }]);
+      setAiMessages(prev => [...prev, { role: 'ai', content: "Sorry, I encountered an error. Please check your Gemini API Key in Settings." }]);
     } finally {
       setAiLoading(false);
     }
@@ -200,14 +205,14 @@ export default function App() {
       }
 
       const scriptText = typeof content === 'string' ? content : JSON.stringify(content, null, 2);
-      const response = await ai.analyzeWorker(scriptText);
+      const response = await ai.analyzeWorker(scriptText, geminiKey);
       setAiMessages(prev => [...prev, { role: 'ai', content: response }]);
     } catch (err: any) {
       console.error("Analysis Error:", err);
       const errorMsg = err.response?.data?.errors?.[0]?.message || err.message || "Unknown error";
       setAiMessages(prev => [...prev, { 
         role: 'ai', 
-        content: `**Error analyzing worker:** ${errorMsg}\n\nThis usually happens if:\n1. The API Token lacks "Account.Workers Scripts: Read" permission.\n2. The worker script is too large for the AI context.\n3. There was a network issue with Cloudflare.` 
+        content: `**Error analyzing worker:** ${errorMsg}\n\nThis usually happens if:\n1. The API Token lacks "Account.Workers Scripts: Read" permission.\n2. The worker script is too large for the AI context.\n3. There was a network issue with Cloudflare.\n4. Your Gemini API Key is invalid.` 
       }]);
     } finally {
       setAiLoading(false);
@@ -268,7 +273,9 @@ export default function App() {
                 onChange={(e) => setToken(e.target.value)}
               />
               <p className="mt-2 text-xs text-white/40">
-                Requires: Account.Workers Scripts (Edit), Zone.DNS (Read/Edit)
+                Requires: <b>Account.Workers Scripts (Edit)</b>, <b>Zone.DNS (Read/Edit)</b>, and <b>Account.Account (Read)</b>.
+                <br />
+                <span className="text-cf-orange/60">Note: Use an API Token, not a Global API Key.</span>
               </p>
             </div>
             
@@ -337,6 +344,16 @@ export default function App() {
           >
             <Globe className="w-5 h-5" />
             <span className="font-medium">DNS Records</span>
+          </button>
+          <button 
+            onClick={() => { setSettingsOpen(true); setSidebarOpen(false); }}
+            className={cn(
+              "w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all",
+              settingsOpen ? "bg-cf-orange/10 text-cf-orange" : "text-white/60 hover:bg-white/5 hover:text-white"
+            )}
+          >
+            <Settings className="w-5 h-5" />
+            <span className="font-medium">Settings</span>
           </button>
         </nav>
 
@@ -678,7 +695,7 @@ export default function App() {
                   <Button variant="secondary" size="sm" onClick={async () => {
                     setAiLoading(true);
                     try {
-                      const code = await ai.generateWorkerCode(workerName || "a simple worker");
+                      const code = await ai.generateWorkerCode(workerName || "a simple worker", geminiKey);
                       setWorkerCode(code);
                     } finally {
                       setAiLoading(false);
@@ -712,6 +729,66 @@ export default function App() {
                   spellCheck={false}
                 />
               </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Settings Modal */}
+      <AnimatePresence>
+        {settingsOpen && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setSettingsOpen(false)}
+              className="absolute inset-0 bg-black/80 backdrop-blur-sm"
+            />
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              className="relative w-full max-w-md bg-dark-card border border-dark-border rounded-2xl shadow-2xl p-6"
+            >
+              <div className="flex items-center justify-between mb-6">
+                <div className="flex items-center gap-3">
+                  <Settings className="w-6 h-6 text-cf-orange" />
+                  <h3 className="font-bold text-lg">Settings</h3>
+                </div>
+                <button onClick={() => setSettingsOpen(false)} className="p-2 hover:bg-white/5 rounded-full">
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-white/70 mb-2">Gemini API Key</label>
+                  <input 
+                    type="password"
+                    placeholder="Enter Gemini API Key..."
+                    className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-cf-orange/50 transition-all"
+                    value={geminiKey}
+                    onChange={(e) => {
+                      setGeminiKey(e.target.value);
+                      localStorage.setItem('gemini_api_key', e.target.value);
+                    }}
+                  />
+                  <p className="mt-2 text-xs text-white/40">
+                    Used for AI Generate, AI Analyze, and Assistant.
+                  </p>
+                </div>
+                
+                <div className="pt-4 border-t border-white/5">
+                  <p className="text-xs text-white/30 mb-2 uppercase tracking-widest">About Dashbro</p>
+                  <p className="text-sm text-white/60">Version 1.1.0</p>
+                  <p className="text-sm text-white/60">Cloudflare Management with AI</p>
+                </div>
+              </div>
+
+              <Button className="w-full mt-8" onClick={() => setSettingsOpen(false)}>
+                Close
+              </Button>
             </motion.div>
           </div>
         )}

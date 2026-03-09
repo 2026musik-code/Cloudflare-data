@@ -5,7 +5,9 @@ const api = axios.create({
 });
 
 export const setAuthToken = (token: string) => {
-  api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+  // Clean up token: remove leading/trailing whitespace and ensure single Bearer prefix
+  const cleanToken = token.trim().replace(/^(bearer\s+|Bearer\s+)+/i, '');
+  api.defaults.headers.common['Authorization'] = `Bearer ${cleanToken}`;
 };
 
 export const getAccounts = async () => {

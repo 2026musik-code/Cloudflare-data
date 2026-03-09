@@ -10,28 +10,38 @@ async function startServer() {
 
   // Proxy for Cloudflare API to avoid CORS issues
   app.all("/api/cloudflare/*", async (req, res) => {
-    const token = req.headers.authorization;
+    let token = req.headers.authorization;
     if (!token) {
       return res.status(401).json({ error: "No API Token provided" });
+    }
+
+    // Ensure token has Bearer prefix if it's a token, but don't double it
+    if (!token.startsWith("Bearer ") && !token.startsWith("bearer ")) {
+      token = `Bearer ${token}`;
     }
 
     const cfPath = req.params[0];
     const url = `https://api.cloudflare.com/client/v4/${cfPath}`;
 
+    const headers: any = {
+      Authorization: token,
+      "User-Agent": "Dashbro-AI/1.1.0",
+    };
+
+    if (req.headers["content-type"] && req.method !== "GET") {
+      headers["Content-Type"] = req.headers["content-type"];
+    }
+
     try {
       const response = await axios({
         method: req.method,
         url,
-        headers: {
-          Authorization: token,
-          "Content-Type": req.headers["content-type"] || "application/json",
-        },
+        headers,
         params: req.query,
-        data: req.body,
-        responseType: 'text', // Get raw response to handle scripts
+        data: req.method !== "GET" ? req.body : undefined,
+        responseType: 'text',
       });
       
-      // Try to parse as JSON if possible, otherwise send as is
       try {
         const jsonData = JSON.parse(response.data);
         res.status(response.status).json(jsonData);
@@ -40,7 +50,18 @@ async function startServer() {
       }
     } catch (error: any) {
       console.error("Cloudflare Proxy Error:", error.response?.data || error.message);
-      res.status(error.response?.status || 500).json(error.response?.data || { error: "Internal Server Error" });
+      const errorData = error.response?.data;
+      
+      // If it's a string (like a script error), send it as is, otherwise parse
+      if (typeof errorData === 'string') {
+        try {
+          res.status(error.response?.status || 500).json(JSON.parse(errorData));
+        } catch {
+          res.status(error.response?.status || 500).send(errorData);
+        }
+      } else {
+        res.status(error.response?.status || 500).json(errorData || { error: "Internal Server Error" });
+      }
     }
   });
 

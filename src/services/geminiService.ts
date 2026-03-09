@@ -1,8 +1,17 @@
 import { GoogleGenAI, Type } from "@google/genai";
 
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || "" });
+let aiInstance: GoogleGenAI | null = null;
 
-export const generateWorkerCode = async (prompt: string) => {
+const getAI = (userKey?: string) => {
+  const key = userKey || localStorage.getItem('gemini_api_key') || process.env.GEMINI_API_KEY || "";
+  if (!aiInstance || aiInstance.apiKey !== key) {
+    aiInstance = new GoogleGenAI({ apiKey: key });
+  }
+  return aiInstance;
+};
+
+export const generateWorkerCode = async (prompt: string, userKey?: string) => {
+  const ai = getAI(userKey);
   const response = await ai.models.generateContent({
     model: "gemini-3.1-pro-preview",
     contents: `Generate a Cloudflare Worker script based on this requirement: ${prompt}. 
@@ -14,7 +23,8 @@ export const generateWorkerCode = async (prompt: string) => {
   return response.text;
 };
 
-export const analyzeWorker = async (code: string) => {
+export const analyzeWorker = async (code: string, userKey?: string) => {
+  const ai = getAI(userKey);
   const response = await ai.models.generateContent({
     model: "gemini-3.1-pro-preview",
     contents: `Analyze this Cloudflare Worker code for security, performance, and best practices:
@@ -26,7 +36,8 @@ export const analyzeWorker = async (code: string) => {
   return response.text;
 };
 
-export const chatWithAI = async (message: string, context?: string) => {
+export const chatWithAI = async (message: string, context?: string, userKey?: string) => {
+  const ai = getAI(userKey);
   const response = await ai.models.generateContent({
     model: "gemini-3.1-pro-preview",
     contents: message,
