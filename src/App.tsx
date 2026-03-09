@@ -21,7 +21,12 @@ import {
   X,
   Menu,
   Settings,
-  CheckCircle2
+  CheckCircle2,
+  Eye,
+  ExternalLink,
+  Info,
+  AlertTriangle,
+  Lightbulb
 } from 'lucide-react';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
@@ -35,6 +40,39 @@ function cn(...inputs: ClassValue[]) {
 }
 
 // --- Components ---
+
+const CodePreview = ({ code, language }: { code: string; language?: string }) => {
+  const [showPreview, setShowPreview] = useState(false);
+  
+  const isPreviewable = language === 'html' || language === 'xml' || code.trim().startsWith('<');
+
+  if (!isPreviewable) return null;
+
+  return (
+    <div className="mt-2 border border-white/10 rounded-xl overflow-hidden bg-black/40">
+      <div className="flex items-center justify-between px-4 py-2 bg-white/5 border-b border-white/5">
+        <span className="text-[10px] font-mono text-white/40 uppercase tracking-widest">Live Preview</span>
+        <button 
+          onClick={() => setShowPreview(!showPreview)}
+          className="flex items-center gap-1.5 text-[10px] font-medium text-cf-orange hover:text-cf-orange/80 transition-colors"
+        >
+          {showPreview ? <X className="w-3 h-3" /> : <Eye className="w-3 h-3" />}
+          {showPreview ? 'Close Preview' : 'Show Preview'}
+        </button>
+      </div>
+      {showPreview && (
+        <div className="bg-white h-[300px] w-full">
+          <iframe 
+            srcDoc={code}
+            title="Preview"
+            className="w-full h-full border-none"
+            sandbox="allow-scripts"
+          />
+        </div>
+      )}
+    </div>
+  );
+};
 
 const Button = React.forwardRef<HTMLButtonElement, React.ButtonHTMLAttributes<HTMLButtonElement> & { variant?: 'primary' | 'secondary' | 'danger' | 'ghost', size?: 'sm' | 'md' | 'lg' }>(
   ({ className, variant = 'primary', size = 'md', ...props }, ref) => {
@@ -727,7 +765,65 @@ export default function App() {
                       msg.role === 'user' ? "bg-cf-orange text-white rounded-tr-none" : "bg-white/5 text-white/90 rounded-tl-none border border-white/10"
                     )}>
                       <div className="prose prose-invert prose-sm max-w-none">
-                        <Markdown>
+                        <Markdown
+                          components={{
+                            code({ node, inline, className, children, ...props }: any) {
+                              const match = /language-(\w+)/.exec(className || '');
+                              const code = String(children).replace(/\n$/, '');
+                              return !inline ? (
+                                <div className="relative group">
+                                  <pre className={cn(className, "bg-black/40 p-4 rounded-xl border border-white/5 overflow-x-auto")}>
+                                    <code {...props}>{children}</code>
+                                  </pre>
+                                  <CodePreview code={code} language={match?.[1]} />
+                                </div>
+                              ) : (
+                                <code className="bg-white/10 px-1.5 py-0.5 rounded text-cf-orange" {...props}>
+                                  {children}
+                                </code>
+                              );
+                            },
+                            p({ children }) {
+                              const text = String(children);
+                              if (typeof children === 'string') {
+                                if (children.startsWith('[IMPORTANT:')) {
+                                  return (
+                                    <div className="my-4 p-4 rounded-xl bg-red-500/10 border border-red-500/20 flex gap-3 items-start">
+                                      <AlertTriangle className="w-5 h-5 text-red-500 shrink-0 mt-0.5" />
+                                      <div className="text-red-200 font-medium">
+                                        <span className="font-bold uppercase text-xs block mb-1">Important</span>
+                                        {children.replace('[IMPORTANT:', '').replace(']', '')}
+                                      </div>
+                                    </div>
+                                  );
+                                }
+                                if (children.startsWith('[TIP:')) {
+                                  return (
+                                    <div className="my-4 p-4 rounded-xl bg-cf-orange/10 border border-cf-orange/20 flex gap-3 items-start">
+                                      <Lightbulb className="w-5 h-5 text-cf-orange shrink-0 mt-0.5" />
+                                      <div className="text-cf-orange/90 font-medium">
+                                        <span className="font-bold uppercase text-xs block mb-1">Tip</span>
+                                        {children.replace('[TIP:', '').replace(']', '')}
+                                      </div>
+                                    </div>
+                                  );
+                                }
+                                if (children.startsWith('[SUCCESS:')) {
+                                  return (
+                                    <div className="my-4 p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex gap-3 items-start">
+                                      <CheckCircle2 className="w-5 h-5 text-emerald-500 shrink-0 mt-0.5" />
+                                      <div className="text-emerald-200 font-medium">
+                                        <span className="font-bold uppercase text-xs block mb-1">Success</span>
+                                        {children.replace('[SUCCESS:', '').replace(']', '')}
+                                      </div>
+                                    </div>
+                                  );
+                                }
+                              }
+                              return <p>{children}</p>;
+                            }
+                          }}
+                        >
                           {msg.content}
                         </Markdown>
                       </div>
@@ -819,14 +915,14 @@ export default function App() {
                   {!editingWorker.id && (
                     <div className="space-y-2">
                       <label className="text-[10px] font-bold text-white/30 uppercase tracking-widest">AI Prompt</label>
-                      <div className="flex gap-3">
+                      <div className="flex flex-col gap-3">
                         <textarea 
-                          placeholder="Describe your worker... (e.g. 'A worker that basic auths all requests')"
-                          className="flex-1 bg-white/5 border border-white/10 rounded-xl p-4 text-sm focus:outline-none focus:ring-2 focus:ring-cf-orange/50 resize-none h-24 transition-all"
+                          placeholder="Describe your worker in detail... (e.g. 'A worker that basic auths all requests and logs them to KV')"
+                          className="w-full bg-white/5 border border-white/10 rounded-xl p-4 text-sm focus:outline-none focus:ring-2 focus:ring-cf-orange/50 resize-none h-48 transition-all"
                           value={workerPrompt}
                           onChange={(e) => setWorkerPrompt(e.target.value)}
                         />
-                        <div className="flex flex-col justify-end">
+                        <div className="flex justify-end">
                           <Button 
                             onClick={async () => {
                               if (!workerPrompt) return;
@@ -840,10 +936,10 @@ export default function App() {
                               }
                             }} 
                             disabled={!workerPrompt || aiLoading}
-                            className="h-12 px-6"
+                            className="h-12 px-8"
                           >
                             <Sparkles className="w-4 h-4" />
-                            Generate Code
+                            Generate Worker Code
                           </Button>
                         </div>
                       </div>
@@ -857,8 +953,10 @@ export default function App() {
                   </div>
                   
                   <div className="flex-1 relative overflow-hidden">
-                    <div className="absolute inset-y-0 left-0 w-12 bg-black/20 border-r border-white/5 flex flex-col items-center pt-6 text-[10px] font-mono text-white/10 select-none">
-                      {Array.from({ length: 20 }).map((_, i) => <div key={i} className="h-5 leading-5">{i + 1}</div>)}
+                    <div className="absolute inset-y-0 left-0 w-12 bg-black/20 border-r border-white/5 flex flex-col items-center pt-6 text-[10px] font-mono text-white/10 select-none overflow-hidden">
+                      {Array.from({ length: Math.max(20, workerCode.split('\n').length + 5) }).map((_, i) => (
+                        <div key={i} className="h-5 leading-5">{i + 1}</div>
+                      ))}
                     </div>
                     <textarea 
                       className="absolute inset-0 w-full h-full bg-transparent pl-16 pr-6 pt-6 font-mono text-sm resize-none focus:outline-none scrollbar-hide leading-5 text-cf-orange/90"

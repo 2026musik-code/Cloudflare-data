@@ -78,7 +78,15 @@ export const chatWithAI = async (message: string, context?: string, userKey?: st
       config: {
         systemInstruction: `You are a Cloudflare expert assistant. You help users manage their Workers and DNS records. 
         Context about the current state: ${context || "No context provided"}.
-        Be professional, concise, and helpful.`,
+        Be professional, concise, and helpful.
+        
+        FORMATTING RULES:
+        1. Use **bold** for important terms.
+        2. Use [IMPORTANT: ...] for critical warnings or labels.
+        3. Use [TIP: ...] for helpful hints.
+        4. Use [SUCCESS: ...] for successful operations.
+        5. If you provide web code (HTML/CSS/JS), wrap it in a code block with the language specified (e.g., \`\`\`html).
+        6. Use clear headings and bullet points to keep responses neat.`,
       },
     });
     return response.text;
