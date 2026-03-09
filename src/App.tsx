@@ -903,10 +903,11 @@ export default function App() {
                 </div>
               </div>
 
-              <div className="flex-1 flex flex-col min-h-0">
-                <div className="p-6 bg-white/5 border-b border-white/5 space-y-4">
-                  <div className="flex items-center gap-4">
-                    <div className="flex-1 space-y-1">
+              <div className="flex-1 flex flex-col lg:flex-row min-h-0 overflow-hidden">
+                {/* Left Panel: Controls & AI Prompt */}
+                <div className="w-full lg:w-96 border-b lg:border-b-0 lg:border-r border-dark-border p-6 bg-white/5 space-y-6 overflow-y-auto scrollbar-hide">
+                  <div className="space-y-4">
+                    <div className="space-y-1">
                       <label className="text-[10px] font-bold text-white/30 uppercase tracking-widest">Worker Name</label>
                       <input 
                         type="text" 
@@ -917,23 +918,21 @@ export default function App() {
                         disabled={!!editingWorker.id}
                       />
                     </div>
-                  </div>
-                  
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-bold text-white/30 uppercase tracking-widest">
-                      {editingWorker.id ? 'AI Instructions (Improve Code)' : 'AI Prompt (Generate Code)'}
-                    </label>
-                    <div className="flex flex-col gap-3">
-                      <textarea 
-                        placeholder={editingWorker.id 
-                          ? "What would you like to change or improve? (e.g. 'Add basic auth' or 'Optimize performance')" 
-                          : "Describe your worker in detail... (e.g. 'A worker that basic auths all requests and logs them to KV')"
-                        }
-                        className="w-full bg-white/5 border border-white/10 rounded-xl p-4 text-sm focus:outline-none focus:ring-2 focus:ring-cf-orange/50 resize-none h-32 transition-all"
-                        value={workerPrompt}
-                        onChange={(e) => setWorkerPrompt(e.target.value)}
-                      />
-                      <div className="flex justify-end">
+                    
+                    <div className="space-y-2">
+                      <label className="text-[10px] font-bold text-white/30 uppercase tracking-widest">
+                        {editingWorker.id ? 'AI Instructions' : 'AI Prompt'}
+                      </label>
+                      <div className="flex flex-col gap-3">
+                        <textarea 
+                          placeholder={editingWorker.id 
+                            ? "What would you like to change or improve?" 
+                            : "Describe your worker in detail..."
+                          }
+                          className="w-full bg-white/5 border border-white/10 rounded-xl p-4 text-sm focus:outline-none focus:ring-2 focus:ring-cf-orange/50 resize-none h-48 lg:h-64 transition-all"
+                          value={workerPrompt}
+                          onChange={(e) => setWorkerPrompt(e.target.value)}
+                        />
                         <Button 
                           onClick={async () => {
                             if (!workerPrompt) return;
@@ -947,22 +946,37 @@ export default function App() {
                               }
                               setWorkerCode(code);
                               setIsCodeGenerated(true);
-                              setWorkerPrompt(''); // Clear prompt after use
+                              setWorkerPrompt('');
                             } finally {
                               setAiLoading(false);
                             }
                           }} 
                           disabled={!workerPrompt || aiLoading}
-                          className="h-12 px-8"
+                          className="w-full py-3"
                         >
                           <Sparkles className="w-4 h-4" />
-                          {editingWorker.id ? 'Improve with AI' : 'Generate Worker Code'}
+                          {editingWorker.id ? 'Improve with AI' : 'Generate Code'}
                         </Button>
                       </div>
                     </div>
                   </div>
+
+                  {isCodeGenerated && (
+                    <div className="pt-4 border-t border-white/5">
+                      <Button 
+                        size="lg" 
+                        className="w-full py-4 text-base shadow-[0_0_20px_rgba(242,125,38,0.1)]"
+                        onClick={saveWorker}
+                        disabled={loading || !workerName}
+                      >
+                        <Zap className="w-5 h-5" />
+                        Deploy Worker
+                      </Button>
+                    </div>
+                  )}
                 </div>
 
+                {/* Right Panel: Editor */}
                 <div className="flex-1 flex flex-col min-h-0 bg-[#0d0d0d] relative group">
                   <div className="absolute top-3 right-4 z-20 flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                     <span className="text-[10px] font-mono text-white/20 uppercase tracking-widest">JavaScript (ESM)</span>
@@ -993,27 +1007,9 @@ export default function App() {
                           <div className="w-12 h-12 rounded-full border-2 border-cf-orange/20 border-t-cf-orange animate-spin" />
                           <Sparkles className="w-5 h-5 text-cf-orange absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 animate-pulse" />
                         </div>
-                        <span className="text-sm font-medium text-white/80 tracking-wide">Gemini is crafting your code...</span>
+                        <span className="text-sm font-medium text-white/80 tracking-wide">AI is working...</span>
                       </div>
                     </div>
-                  )}
-
-                  {isCodeGenerated && (
-                    <motion.div 
-                      initial={{ opacity: 0, y: 20 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      className="p-6 bg-gradient-to-t from-black to-transparent border-t border-white/5 flex justify-center"
-                    >
-                      <Button 
-                        size="lg" 
-                        className="px-12 py-6 text-base shadow-[0_0_30px_rgba(242,125,38,0.2)] hover:shadow-[0_0_40px_rgba(242,125,38,0.3)] transition-all"
-                        onClick={saveWorker}
-                        disabled={loading || !workerName}
-                      >
-                        <Zap className="w-5 h-5" />
-                        Deploy to Cloudflare
-                      </Button>
-                    </motion.div>
                   )}
                 </div>
               </div>
