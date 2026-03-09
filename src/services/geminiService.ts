@@ -1,11 +1,13 @@
 import { GoogleGenAI, Type } from "@google/genai";
 
 let aiInstance: GoogleGenAI | null = null;
+let currentKey: string | null = null;
 
 const getAI = (userKey?: string) => {
   const key = userKey || localStorage.getItem('gemini_api_key') || process.env.GEMINI_API_KEY || "";
-  if (!aiInstance || aiInstance.apiKey !== key) {
+  if (!aiInstance || currentKey !== key) {
     aiInstance = new GoogleGenAI({ apiKey: key });
+    currentKey = key;
   }
   return aiInstance;
 };

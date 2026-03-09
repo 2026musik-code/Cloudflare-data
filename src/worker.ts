@@ -1,7 +1,7 @@
 import { Hono } from 'hono';
 import { serveStatic } from 'hono/cloudflare-workers';
 
-const app = new Hono<{ Bindings: { STORAGE: R2Bucket, GEMINI_API_KEY: string } }>();
+const app = new Hono<{ Bindings: { vpsai: any, GEMINI_API_KEY: string, ASSETS: any } }>();
 
 // Proxy for Cloudflare API
 app.all('/api/cloudflare/*', async (c) => {
@@ -37,7 +37,7 @@ app.all('/api/cloudflare/*', async (c) => {
 // Storage API (Example using R2)
 app.get('/api/storage/:key', async (c) => {
   const key = c.req.param('key');
-  const object = await c.env.STORAGE.get(key);
+  const object = await c.env.vpsai.get(key);
   if (!object) return c.notFound();
   return c.body(object.body);
 });
@@ -45,11 +45,13 @@ app.get('/api/storage/:key', async (c) => {
 app.put('/api/storage/:key', async (c) => {
   const key = c.req.param('key');
   const body = await c.req.arrayBuffer();
-  await c.env.STORAGE.put(key, body);
+  await c.env.vpsai.put(key, body);
   return c.json({ success: true });
 });
 
 // Serve static assets
-app.get('/*', serveStatic({ root: './' }));
+app.get('/*', (c) => {
+  return c.env.ASSETS.fetch(c.req.raw);
+});
 
 export default app;
