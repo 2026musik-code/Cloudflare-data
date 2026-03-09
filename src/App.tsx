@@ -570,11 +570,18 @@ export default function App() {
                   {workers.map(worker => (
                     <div 
                       key={worker.id} 
-                      onClick={() => {
+                      onClick={async () => {
                         setEditingWorker(worker);
                         setWorkerName(worker.id);
                         setWorkerCode('// Fetching code...');
                         setIsCodeGenerated(true);
+                        try {
+                          const content = await cf.getWorkerContent(selectedAccount!.id, worker.id);
+                          const scriptText = typeof content === 'string' ? content : JSON.stringify(content, null, 2);
+                          setWorkerCode(scriptText);
+                        } catch (err) {
+                          setWorkerCode('// Error fetching code. Please try again.');
+                        }
                       }}
                       className="cursor-pointer"
                     >
@@ -912,39 +919,48 @@ export default function App() {
                     </div>
                   </div>
                   
-                  {!editingWorker.id && (
-                    <div className="space-y-2">
-                      <label className="text-[10px] font-bold text-white/30 uppercase tracking-widest">AI Prompt</label>
-                      <div className="flex flex-col gap-3">
-                        <textarea 
-                          placeholder="Describe your worker in detail... (e.g. 'A worker that basic auths all requests and logs them to KV')"
-                          className="w-full bg-white/5 border border-white/10 rounded-xl p-4 text-sm focus:outline-none focus:ring-2 focus:ring-cf-orange/50 resize-none h-48 transition-all"
-                          value={workerPrompt}
-                          onChange={(e) => setWorkerPrompt(e.target.value)}
-                        />
-                        <div className="flex justify-end">
-                          <Button 
-                            onClick={async () => {
-                              if (!workerPrompt) return;
-                              setAiLoading(true);
-                              try {
-                                const code = await ai.generateWorkerCode(workerPrompt, geminiKey, selectedModel);
-                                setWorkerCode(code);
-                                setIsCodeGenerated(true);
-                              } finally {
-                                setAiLoading(false);
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-bold text-white/30 uppercase tracking-widest">
+                      {editingWorker.id ? 'AI Instructions (Improve Code)' : 'AI Prompt (Generate Code)'}
+                    </label>
+                    <div className="flex flex-col gap-3">
+                      <textarea 
+                        placeholder={editingWorker.id 
+                          ? "What would you like to change or improve? (e.g. 'Add basic auth' or 'Optimize performance')" 
+                          : "Describe your worker in detail... (e.g. 'A worker that basic auths all requests and logs them to KV')"
+                        }
+                        className="w-full bg-white/5 border border-white/10 rounded-xl p-4 text-sm focus:outline-none focus:ring-2 focus:ring-cf-orange/50 resize-none h-32 transition-all"
+                        value={workerPrompt}
+                        onChange={(e) => setWorkerPrompt(e.target.value)}
+                      />
+                      <div className="flex justify-end">
+                        <Button 
+                          onClick={async () => {
+                            if (!workerPrompt) return;
+                            setAiLoading(true);
+                            try {
+                              let code;
+                              if (editingWorker.id) {
+                                code = await ai.improveWorkerCode(workerCode, workerPrompt, geminiKey, selectedModel);
+                              } else {
+                                code = await ai.generateWorkerCode(workerPrompt, geminiKey, selectedModel);
                               }
-                            }} 
-                            disabled={!workerPrompt || aiLoading}
-                            className="h-12 px-8"
-                          >
-                            <Sparkles className="w-4 h-4" />
-                            Generate Worker Code
-                          </Button>
-                        </div>
+                              setWorkerCode(code);
+                              setIsCodeGenerated(true);
+                              setWorkerPrompt(''); // Clear prompt after use
+                            } finally {
+                              setAiLoading(false);
+                            }
+                          }} 
+                          disabled={!workerPrompt || aiLoading}
+                          className="h-12 px-8"
+                        >
+                          <Sparkles className="w-4 h-4" />
+                          {editingWorker.id ? 'Improve with AI' : 'Generate Worker Code'}
+                        </Button>
                       </div>
                     </div>
-                  )}
+                  </div>
                 </div>
 
                 <div className="flex-1 flex flex-col min-h-0 bg-[#0d0d0d] relative group">

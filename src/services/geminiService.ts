@@ -95,3 +95,25 @@ export const chatWithAI = async (message: string, context?: string, userKey?: st
     throw error;
   }
 };
+
+export const improveWorkerCode = async (code: string, prompt: string, userKey?: string, model: string = "gemini-3-flash-preview") => {
+  try {
+    const ai = getAI(userKey);
+    const response = await ai.models.generateContent({
+      model: model,
+      contents: `Improve or modify this Cloudflare Worker script based on this requirement: ${prompt}.
+      
+      Current Code:
+      ${code}
+      
+      Return ONLY the improved JavaScript code, no markdown formatting if possible, or wrap it in a code block.`,
+      config: {
+        temperature: 0.7,
+      },
+    });
+    return response.text;
+  } catch (error: any) {
+    console.error("Gemini Improve Code Error:", error);
+    throw error;
+  }
+};
