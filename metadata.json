@@ -1,0 +1,5 @@
+{
+  "name": "Cloudflare Dashbro AI",
+  "description": "Modern Cloudflare management dashboard with Gemini AI assistance for Workers and DNS.",
+  "requestFramePermissions": []
+}
