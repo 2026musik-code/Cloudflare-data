@@ -277,6 +277,7 @@ export default function App() {
     setLoading(true);
     try {
       const data = await cf.getWorkers(selectedAccount.id);
+      console.log('Workers:', data);
       setWorkers(data);
     } catch (err) {
       console.error(err);
@@ -599,6 +600,15 @@ export default function App() {
                           <Terminal className="w-5 h-5 text-cf-orange" />
                         </div>
                         <div className="flex gap-1 opacity-100 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity">
+                          <a 
+                            href={`https://dash.cloudflare.com/${selectedAccount.id}/workers/services/view/${worker.id}/production`}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="p-2 hover:bg-white/10 rounded-lg text-white/70"
+                            title="Visit in Dashboard"
+                          >
+                            <ExternalLink className="w-4 h-4" />
+                          </a>
                           <button 
                             onClick={(e) => { e.stopPropagation(); handleAnalyzeWorker(worker.id); }}
                             className="p-2 hover:bg-white/10 rounded-lg text-cf-orange" title="AI Analyze"
