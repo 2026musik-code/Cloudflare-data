@@ -15,6 +15,7 @@ async function startServer() {
   }
 
   app.use(express.json());
+  app.use(express.text({ type: ['application/javascript', 'text/plain', 'application/octet-stream'] }));
 
   // Storage API to simulate R2 in local dev
   app.get("/api/storage/:filename", (req, res) => {
@@ -58,8 +59,16 @@ async function startServer() {
       "User-Agent": "Dashbro-AI/1.1.0",
     };
 
-    if (req.headers["content-type"] && req.method !== "GET") {
+    // Forward content-type if present
+    if (req.headers["content-type"]) {
       headers["Content-Type"] = req.headers["content-type"];
+    }
+
+    // Ensure data is sent correctly based on content-type
+    let data = req.body;
+    if (req.method !== "GET" && typeof data === 'object' && Object.keys(data).length === 0 && req.headers["content-type"]?.includes('javascript')) {
+      // This might happen if express.json() parsed an empty body or if it's not a string
+      // But express.text should have caught it.
     }
 
     try {
@@ -68,7 +77,7 @@ async function startServer() {
         url,
         headers,
         params: req.query,
-        data: req.method !== "GET" ? req.body : undefined,
+        data: req.method !== "GET" ? data : undefined,
         responseType: 'text',
       });
       

@@ -19,18 +19,40 @@ const getAI = (userKey?: string) => {
   return aiInstance;
 };
 
+const cleanCode = (text: string) => {
+  // Remove markdown code blocks (e.g., ```javascript ... ``` or ``` ... ```)
+  const codeBlockRegex = /```(?:javascript|js|typescript|ts|html)?\s*([\s\S]*?)```/i;
+  const match = text.match(codeBlockRegex);
+  if (match && match[1]) {
+    return match[1].trim();
+  }
+  
+  // If no code block found, remove any leading/trailing backticks and language identifiers
+  return text
+    .replace(/^```(?:javascript|js|typescript|ts|html)?\s*/i, '')
+    .replace(/\s*```$/i, '')
+    .trim();
+};
+
 export const generateWorkerCode = async (prompt: string, userKey?: string, model: string = "gemini-3-flash-preview") => {
   try {
     const ai = getAI(userKey);
     const response = await ai.models.generateContent({
       model: model,
-      contents: `Generate a Cloudflare Worker script based on this requirement: ${prompt}. 
-      Return ONLY the JavaScript code, no markdown formatting if possible, or wrap it in a code block.`,
+      contents: `Generate a valid Cloudflare Worker script based on this requirement: ${prompt}. 
+      
+      STRICT RULES:
+      1. Use the Service Worker format (using addEventListener('fetch', ...)) rather than ESM (export default).
+      2. Return ONLY the JavaScript code. 
+      3. DO NOT include any markdown backticks (e.g., no \`\`\`javascript).
+      4. DO NOT include any explanations, headers, or comments outside the code.
+      5. Ensure all variables (like 'html' or 'response') are properly defined with 'const' or 'let'.
+      6. If you use a template literal for HTML, ensure it is properly quoted with backticks (\`).`,
       config: {
         temperature: 0.7,
       },
     });
-    return response.text;
+    return cleanCode(response.text);
   } catch (error: any) {
     console.error("Gemini Generate Code Error:", error);
     throw error;
@@ -106,12 +128,18 @@ export const improveWorkerCode = async (code: string, prompt: string, userKey?: 
       Current Code:
       ${code}
       
-      Return ONLY the improved JavaScript code, no markdown formatting if possible, or wrap it in a code block.`,
+      STRICT RULES:
+      1. Use the Service Worker format (using addEventListener('fetch', ...)) rather than ESM (export default).
+      2. Return ONLY the improved JavaScript code. 
+      3. DO NOT include any markdown backticks (e.g., no \`\`\`javascript).
+      4. DO NOT include any explanations, headers, or comments outside the code.
+      5. Ensure all variables (like 'html' or 'response') are properly defined with 'const' or 'let'.
+      6. If you use a template literal for HTML, ensure it is properly quoted with backticks (\`).`,
       config: {
         temperature: 0.7,
       },
     });
-    return response.text;
+    return cleanCode(response.text);
   } catch (error: any) {
     console.error("Gemini Improve Code Error:", error);
     throw error;

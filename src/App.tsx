@@ -357,11 +357,19 @@ export default function App() {
     if (!selectedAccount || !workerName || !workerCode) return;
     setLoading(true);
     try {
-      await cf.upsertWorker(selectedAccount.id, workerName, workerCode);
+      // Final cleanup of code (remove markdown backticks if any)
+      const cleanCode = workerCode
+        .replace(/^```(?:javascript|js|typescript|ts|html)?\s*/i, '')
+        .replace(/\s*```$/i, '')
+        .trim();
+      
+      await cf.upsertWorker(selectedAccount.id, workerName, cleanCode);
       setEditingWorker(null);
       fetchWorkers();
-    } catch (err) {
-      alert('Error saving worker');
+    } catch (err: any) {
+      console.error('Save Worker Error:', err);
+      const errorMsg = err.response?.data?.errors?.[0]?.message || err.message || "Unknown error";
+      alert(`Error saving worker: ${errorMsg}`);
     } finally {
       setLoading(false);
     }
