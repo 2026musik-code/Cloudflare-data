@@ -20,7 +20,8 @@ import {
   Sparkles,
   X,
   Menu,
-  Settings
+  Settings,
+  CheckCircle2
 } from 'lucide-react';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
@@ -89,6 +90,39 @@ export default function App() {
   // Settings State
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [geminiKey, setGeminiKey] = useState(localStorage.getItem('gemini_api_key') || '');
+  const [savedKeys, setSavedKeys] = useState<{ id: string; name: string; key: string }[]>(() => {
+    const saved = localStorage.getItem('dashbro_gemini_keys');
+    return saved ? JSON.parse(saved) : [];
+  });
+  const [newKeyName, setNewKeyName] = useState('');
+  const [newKeyValue, setNewKeyValue] = useState('');
+  
+  const saveNewKey = () => {
+    if (!newKeyName.trim() || !newKeyValue.trim()) return;
+    const keyObj = { id: Date.now().toString(), name: newKeyName, key: newKeyValue };
+    const updated = [...savedKeys, keyObj];
+    setSavedKeys(updated);
+    localStorage.setItem('dashbro_gemini_keys', JSON.stringify(updated));
+    setNewKeyName('');
+    setNewKeyValue('');
+    
+    // If no active key, set this as active
+    if (!geminiKey) {
+      setGeminiKey(newKeyValue);
+      localStorage.setItem('gemini_api_key', newKeyValue);
+    }
+  };
+
+  const deleteKey = (id: string) => {
+    const updated = savedKeys.filter(k => k.id !== id);
+    setSavedKeys(updated);
+    localStorage.setItem('dashbro_gemini_keys', JSON.stringify(updated));
+  };
+
+  const selectKey = (key: string) => {
+    setGeminiKey(key);
+    localStorage.setItem('gemini_api_key', key);
+  };
   
   // AI State
   const [aiOpen, setAiOpen] = useState(false);
@@ -761,27 +795,78 @@ export default function App() {
                 </button>
               </div>
 
-              <div className="space-y-4">
+              <div className="space-y-6">
                 <div>
-                  <label className="block text-sm font-medium text-white/70 mb-2">Gemini API Key</label>
-                  <input 
-                    type="password"
-                    placeholder="Enter Gemini API Key..."
-                    className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-cf-orange/50 transition-all"
-                    value={geminiKey}
-                    onChange={(e) => {
-                      setGeminiKey(e.target.value);
-                      localStorage.setItem('gemini_api_key', e.target.value);
-                    }}
-                  />
-                  <p className="mt-2 text-xs text-white/40">
-                    Used for AI Generate, AI Analyze, and Assistant.
-                  </p>
+                  <h4 className="text-sm font-semibold text-white/80 mb-4 flex items-center gap-2">
+                    <Plus className="w-4 h-4 text-cf-orange" />
+                    Add New Gemini Key
+                  </h4>
+                  <div className="space-y-3">
+                    <input 
+                      type="text"
+                      placeholder="Key Name (e.g. Personal, Work)"
+                      className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-cf-orange/50 transition-all"
+                      value={newKeyName}
+                      onChange={(e) => setNewKeyName(e.target.value)}
+                    />
+                    <div className="flex gap-2">
+                      <input 
+                        type="password"
+                        placeholder="Paste API Key here..."
+                        className="flex-1 bg-white/5 border border-white/10 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-cf-orange/50 transition-all"
+                        value={newKeyValue}
+                        onChange={(e) => setNewKeyValue(e.target.value)}
+                      />
+                      <Button size="sm" onClick={saveNewKey} disabled={!newKeyName || !newKeyValue}>
+                        Save
+                      </Button>
+                    </div>
+                  </div>
                 </div>
+
+                {savedKeys.length > 0 && (
+                  <div>
+                    <h4 className="text-sm font-semibold text-white/80 mb-3">Saved Keys</h4>
+                    <div className="space-y-2 max-h-48 overflow-y-auto pr-2 custom-scrollbar">
+                      {savedKeys.map((k) => (
+                        <div 
+                          key={k.id}
+                          className={cn(
+                            "flex items-center justify-between p-3 rounded-xl border transition-all cursor-pointer",
+                            geminiKey === k.key 
+                              ? "bg-cf-orange/10 border-cf-orange/30" 
+                              : "bg-white/5 border-white/10 hover:bg-white/10"
+                          )}
+                          onClick={() => selectKey(k.key)}
+                        >
+                          <div className="flex items-center gap-3">
+                            {geminiKey === k.key ? (
+                              <CheckCircle2 className="w-4 h-4 text-cf-orange" />
+                            ) : (
+                              <div className="w-4 h-4 rounded-full border border-white/20" />
+                            )}
+                            <div>
+                              <p className="text-sm font-medium">{k.name}</p>
+                              <p className="text-[10px] text-white/30 font-mono">
+                                {k.key.substring(0, 6)}...{k.key.substring(k.key.length - 4)}
+                              </p>
+                            </div>
+                          </div>
+                          <button 
+                            onClick={(e) => { e.stopPropagation(); deleteKey(k.id); }}
+                            className="p-2 text-white/20 hover:text-red-400 hover:bg-red-400/10 rounded-lg transition-all"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
                 
                 <div className="pt-4 border-t border-white/5">
                   <p className="text-xs text-white/30 mb-2 uppercase tracking-widest">About Dashbro</p>
-                  <p className="text-sm text-white/60">Version 1.1.0</p>
+                  <p className="text-sm text-white/60">Version 1.2.0</p>
                   <p className="text-sm text-white/60">Cloudflare Management with AI</p>
                 </div>
               </div>
