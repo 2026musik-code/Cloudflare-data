@@ -1,12 +1,42 @@
 import express from "express";
 import { createServer as createViteServer } from "vite";
 import axios from "axios";
+import fs from "fs";
+import path from "path";
 
 async function startServer() {
   const app = express();
   const PORT = 3000;
+  const STORAGE_DIR = path.join(process.cwd(), ".storage");
+
+  // Create storage directory if it doesn't exist
+  if (!fs.existsSync(STORAGE_DIR)) {
+    fs.mkdirSync(STORAGE_DIR, { recursive: true });
+  }
 
   app.use(express.json());
+
+  // Storage API to simulate R2 in local dev
+  app.get("/api/storage/:filename", (req, res) => {
+    const filePath = path.join(STORAGE_DIR, req.params.filename);
+    if (fs.existsSync(filePath)) {
+      const data = fs.readFileSync(filePath, "utf-8");
+      try {
+        res.json(JSON.parse(data));
+      } catch {
+        res.send(data);
+      }
+    } else {
+      res.status(404).json({ error: "File not found" });
+    }
+  });
+
+  app.put("/api/storage/:filename", (req, res) => {
+    const filePath = path.join(STORAGE_DIR, req.params.filename);
+    const data = typeof req.body === 'string' ? req.body : JSON.stringify(req.body);
+    fs.writeFileSync(filePath, data);
+    res.json({ success: true });
+  });
 
   // Proxy for Cloudflare API to avoid CORS issues
   app.all("/api/cloudflare/*", async (req, res) => {
@@ -63,6 +93,11 @@ async function startServer() {
         res.status(error.response?.status || 500).json(errorData || { error: "Internal Server Error" });
       }
     }
+  });
+
+  // Catch-all for unknown API routes
+  app.all("/api/*", (req, res) => {
+    res.status(404).json({ error: `API route ${req.method} ${req.url} not found` });
   });
 
   // Vite middleware for development

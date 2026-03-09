@@ -104,6 +104,9 @@ export default function App() {
     try {
       await fetch('/api/storage/gemini_keys.json', {
         method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
         body: JSON.stringify(keysToSync),
       });
     } catch (error) {
@@ -177,6 +180,7 @@ export default function App() {
   const [workerCode, setWorkerCode] = useState('');
   const [workerName, setWorkerName] = useState('');
   const [workerPrompt, setWorkerPrompt] = useState('');
+  const [isCodeGenerated, setIsCodeGenerated] = useState(false);
 
   useEffect(() => {
     if (token) {
@@ -504,7 +508,8 @@ export default function App() {
                     setEditingWorker({});
                     setWorkerName('');
                     setWorkerPrompt('');
-                    setWorkerCode('export default {\n  async fetch(request, env, ctx) {\n    return new Response("Hello World!");\n  },\n};');
+                    setWorkerCode('');
+                    setIsCodeGenerated(false);
                   }}>
                     <Plus className="w-4 h-4" />
                     Create Worker
@@ -519,6 +524,7 @@ export default function App() {
                         setEditingWorker(worker);
                         setWorkerName(worker.id);
                         setWorkerCode('// Fetching code...');
+                        setIsCodeGenerated(true);
                       }}
                       className="cursor-pointer"
                     >
@@ -773,22 +779,9 @@ export default function App() {
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
-                  {!editingWorker.id && (
-                    <Button variant="secondary" size="sm" onClick={async () => {
-                      if (!workerPrompt) return;
-                      setAiLoading(true);
-                      try {
-                        const code = await ai.generateWorkerCode(workerPrompt, geminiKey);
-                        setWorkerCode(code);
-                      } finally {
-                        setAiLoading(false);
-                      }
-                    }} disabled={!workerPrompt || aiLoading}>
-                      <Sparkles className="w-4 h-4" />
-                      AI Generate
-                    </Button>
+                  {editingWorker.id && (
+                    <Button size="sm" onClick={saveWorker} disabled={loading || aiLoading}>Save & Deploy</Button>
                   )}
-                  <Button size="sm" onClick={saveWorker} disabled={loading || aiLoading}>Save & Deploy</Button>
                   <button onClick={() => setEditingWorker(null)} className="p-2 hover:bg-white/5 rounded-full ml-2">
                     <X className="w-5 h-5" />
                   </button>
@@ -796,44 +789,105 @@ export default function App() {
               </div>
 
               <div className="flex-1 flex flex-col min-h-0">
-                <div className="p-4 bg-white/5 border-b border-white/5 space-y-3">
-                  <div className="flex items-center gap-3">
-                    <span className="text-xs font-bold text-white/30 uppercase tracking-widest w-24">Name</span>
-                    <input 
-                      type="text" 
-                      placeholder="Worker Name (e.g. my-api)"
-                      className="flex-1 bg-transparent font-mono text-sm focus:outline-none"
-                      value={workerName}
-                      onChange={(e) => setWorkerName(e.target.value)}
-                      disabled={!!editingWorker.id}
-                    />
-                  </div>
-                  {!editingWorker.id && (
-                    <div className="flex items-start gap-3">
-                      <span className="text-xs font-bold text-white/30 uppercase tracking-widest w-24 mt-2">Prompt</span>
-                      <textarea 
-                        placeholder="Describe what this worker should do... (e.g. 'A worker that redirects all traffic to google.com')"
-                        className="flex-1 bg-white/5 border border-white/10 rounded-lg p-3 text-sm focus:outline-none focus:ring-1 focus:ring-cf-orange/50 resize-none h-20"
-                        value={workerPrompt}
-                        onChange={(e) => setWorkerPrompt(e.target.value)}
+                <div className="p-6 bg-white/5 border-b border-white/5 space-y-4">
+                  <div className="flex items-center gap-4">
+                    <div className="flex-1 space-y-1">
+                      <label className="text-[10px] font-bold text-white/30 uppercase tracking-widest">Worker Name</label>
+                      <input 
+                        type="text" 
+                        placeholder="e.g. my-awesome-api"
+                        className="w-full bg-transparent font-mono text-sm focus:outline-none border-b border-white/10 pb-1 focus:border-cf-orange/50 transition-colors"
+                        value={workerName}
+                        onChange={(e) => setWorkerName(e.target.value)}
+                        disabled={!!editingWorker.id}
                       />
+                    </div>
+                  </div>
+                  
+                  {!editingWorker.id && (
+                    <div className="space-y-2">
+                      <label className="text-[10px] font-bold text-white/30 uppercase tracking-widest">AI Prompt</label>
+                      <div className="flex gap-3">
+                        <textarea 
+                          placeholder="Describe your worker... (e.g. 'A worker that basic auths all requests')"
+                          className="flex-1 bg-white/5 border border-white/10 rounded-xl p-4 text-sm focus:outline-none focus:ring-2 focus:ring-cf-orange/50 resize-none h-24 transition-all"
+                          value={workerPrompt}
+                          onChange={(e) => setWorkerPrompt(e.target.value)}
+                        />
+                        <div className="flex flex-col justify-end">
+                          <Button 
+                            onClick={async () => {
+                              if (!workerPrompt) return;
+                              setAiLoading(true);
+                              try {
+                                const code = await ai.generateWorkerCode(workerPrompt, geminiKey);
+                                setWorkerCode(code);
+                                setIsCodeGenerated(true);
+                              } finally {
+                                setAiLoading(false);
+                              }
+                            }} 
+                            disabled={!workerPrompt || aiLoading}
+                            className="h-12 px-6"
+                          >
+                            <Sparkles className="w-4 h-4" />
+                            Generate Code
+                          </Button>
+                        </div>
+                      </div>
                     </div>
                   )}
                 </div>
-                <div className="flex-1 relative">
-                  <textarea 
-                    className="absolute inset-0 w-full h-full bg-transparent p-6 font-mono text-sm resize-none focus:outline-none scrollbar-hide"
-                    value={workerCode}
-                    onChange={(e) => setWorkerCode(e.target.value)}
-                    spellCheck={false}
-                  />
+
+                <div className="flex-1 flex flex-col min-h-0 bg-[#0d0d0d] relative group">
+                  <div className="absolute top-3 right-4 z-20 flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <span className="text-[10px] font-mono text-white/20 uppercase tracking-widest">JavaScript (ESM)</span>
+                  </div>
+                  
+                  <div className="flex-1 relative overflow-hidden">
+                    <div className="absolute inset-y-0 left-0 w-12 bg-black/20 border-r border-white/5 flex flex-col items-center pt-6 text-[10px] font-mono text-white/10 select-none">
+                      {Array.from({ length: 20 }).map((_, i) => <div key={i} className="h-5 leading-5">{i + 1}</div>)}
+                    </div>
+                    <textarea 
+                      className="absolute inset-0 w-full h-full bg-transparent pl-16 pr-6 pt-6 font-mono text-sm resize-none focus:outline-none scrollbar-hide leading-5 text-cf-orange/90"
+                      value={workerCode}
+                      onChange={(e) => {
+                        setWorkerCode(e.target.value);
+                        if (e.target.value.trim()) setIsCodeGenerated(true);
+                      }}
+                      spellCheck={false}
+                      placeholder={!editingWorker.id ? "// Code will appear here after generation..." : ""}
+                    />
+                  </div>
+
                   {aiLoading && (
-                    <div className="absolute inset-0 bg-black/40 backdrop-blur-[1px] flex items-center justify-center z-10">
-                      <div className="flex items-center gap-3 bg-dark-card p-4 rounded-2xl border border-white/10 shadow-2xl">
-                        <Loader2 className="w-5 h-5 animate-spin text-cf-orange" />
-                        <span className="text-sm font-medium">AI is generating code...</span>
+                    <div className="absolute inset-0 bg-black/60 backdrop-blur-[2px] flex items-center justify-center z-30">
+                      <div className="flex flex-col items-center gap-4">
+                        <div className="relative">
+                          <div className="w-12 h-12 rounded-full border-2 border-cf-orange/20 border-t-cf-orange animate-spin" />
+                          <Sparkles className="w-5 h-5 text-cf-orange absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 animate-pulse" />
+                        </div>
+                        <span className="text-sm font-medium text-white/80 tracking-wide">Gemini is crafting your code...</span>
                       </div>
                     </div>
+                  )}
+
+                  {isCodeGenerated && (
+                    <motion.div 
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      className="p-6 bg-gradient-to-t from-black to-transparent border-t border-white/5 flex justify-center"
+                    >
+                      <Button 
+                        size="lg" 
+                        className="px-12 py-6 text-base shadow-[0_0_30px_rgba(242,125,38,0.2)] hover:shadow-[0_0_40px_rgba(242,125,38,0.3)] transition-all"
+                        onClick={saveWorker}
+                        disabled={loading || !workerName}
+                      >
+                        <Zap className="w-5 h-5" />
+                        Deploy to Cloudflare
+                      </Button>
+                    </motion.div>
                   )}
                 </div>
               </div>
