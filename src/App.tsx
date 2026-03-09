@@ -124,6 +124,12 @@ export default function App() {
         if (Array.isArray(data)) {
           setSavedKeys(data);
           localStorage.setItem('dashbro_gemini_keys', JSON.stringify(data));
+          
+          // If no active key is set, pick the first one from R2
+          if (!localStorage.getItem('gemini_api_key') && data.length > 0) {
+            setGeminiKey(data[0].key);
+            localStorage.setItem('gemini_api_key', data[0].key);
+          }
         }
       }
     } catch (error) {
@@ -267,8 +273,13 @@ export default function App() {
       
       const response = await ai.chatWithAI(userMsg, context, geminiKey);
       setAiMessages(prev => [...prev, { role: 'ai', content: response }]);
-    } catch (err) {
-      setAiMessages(prev => [...prev, { role: 'ai', content: "Sorry, I encountered an error. Please check your Gemini API Key in Settings." }]);
+    } catch (err: any) {
+      console.error("AI Chat Error:", err);
+      const errorDetail = err.message || "Unknown error";
+      setAiMessages(prev => [...prev, { 
+        role: 'ai', 
+        content: `Sorry, I encountered an error: **${errorDetail}**. Please check your Gemini API Key in Settings and ensure it has access to the Gemini 3 models.` 
+      }]);
     } finally {
       setAiLoading(false);
     }
