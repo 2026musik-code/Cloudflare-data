@@ -616,12 +616,19 @@ export default function App() {
                             <Sparkles className="w-4 h-4" />
                           </button>
                           <button 
-                            onClick={(e) => {
+                            onClick={async (e) => {
                               e.stopPropagation();
                               setEditingWorker(worker);
                               setWorkerName(worker.id);
-                              // In real app, fetch content first
                               setWorkerCode('// Fetching code...');
+                              setIsCodeGenerated(true);
+                              try {
+                                const content = await cf.getWorkerContent(selectedAccount!.id, worker.id);
+                                const scriptText = typeof content === 'string' ? content : JSON.stringify(content, null, 2);
+                                setWorkerCode(scriptText);
+                              } catch (err) {
+                                setWorkerCode('// Error fetching code. Please try again.');
+                              }
                             }}
                             className="p-2 hover:bg-white/10 rounded-lg text-white/70"
                           >
