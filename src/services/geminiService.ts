@@ -39,17 +39,21 @@ export const generateWorkerCode = async (prompt: string, userKey?: string, model
     const ai = getAI(userKey);
     const response = await ai.models.generateContent({
       model: model,
-      contents: `Generate a valid Cloudflare Worker script based on this requirement: ${prompt}. 
+      contents: `Generate a robust, production-ready Cloudflare Worker script based on this requirement: ${prompt}. 
       
       STRICT RULES:
-      1. Use the Service Worker format (using addEventListener('fetch', ...)) rather than ESM (export default).
-      2. Return ONLY the JavaScript code. 
-      3. DO NOT include any markdown backticks (e.g., no \`\`\`javascript).
-      4. DO NOT include any explanations, headers, or comments outside the code.
-      5. Ensure all variables (like 'html' or 'response') are properly defined with 'const' or 'let'.
-      6. If you use a template literal for HTML, ensure it is properly quoted with backticks (\`).`,
+      1. Use the Service Worker format (using addEventListener('fetch', ...)).
+      2. Include robust error handling (try/catch blocks) for all asynchronous operations.
+      3. Add descriptive comments explaining the logic.
+      4. Implement proper HTTP method handling (GET, POST, etc.) if applicable.
+      5. Include basic logging for debugging purposes.
+      6. Return ONLY the JavaScript code. 
+      7. DO NOT include any markdown backticks (e.g., no \`\`\`javascript).
+      8. DO NOT include any explanations, headers, or comments outside the code.
+      9. Ensure all variables are properly defined with 'const' or 'let'.
+      10. If you use a template literal for HTML, ensure it is properly quoted with backticks (\`).`,
       config: {
-        temperature: 0.7,
+        temperature: 0.5, // Lower temperature for more consistent, professional code
       },
     });
     return cleanCode(response.text);
@@ -129,14 +133,18 @@ export const improveWorkerCode = async (code: string, prompt: string, userKey?: 
       ${code}
       
       STRICT RULES:
-      1. Use the Service Worker format (using addEventListener('fetch', ...)) rather than ESM (export default).
-      2. Return ONLY the improved JavaScript code. 
-      3. DO NOT include any markdown backticks (e.g., no \`\`\`javascript).
-      4. DO NOT include any explanations, headers, or comments outside the code.
-      5. Ensure all variables (like 'html' or 'response') are properly defined with 'const' or 'let'.
-      6. If you use a template literal for HTML, ensure it is properly quoted with backticks (\`).`,
+      1. Use the Service Worker format (using addEventListener('fetch', ...)).
+      2. Include robust error handling (try/catch blocks) for all asynchronous operations.
+      3. Add descriptive comments explaining the logic.
+      4. Implement proper HTTP method handling (GET, POST, etc.) if applicable.
+      5. Include basic logging for debugging purposes.
+      6. Return ONLY the improved JavaScript code. 
+      7. DO NOT include any markdown backticks (e.g., no \`\`\`javascript).
+      8. DO NOT include any explanations, headers, or comments outside the code.
+      9. Ensure all variables are properly defined with 'const' or 'let'.
+      10. If you use a template literal for HTML, ensure it is properly quoted with backticks (\`).`,
       config: {
-        temperature: 0.7,
+        temperature: 0.5, // Lower temperature for more consistent, professional code
       },
     });
     return cleanCode(response.text);
