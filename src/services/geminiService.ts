@@ -95,7 +95,7 @@ export const analyzeWorker = async (code: string, userKey?: string, model: strin
   }
 };
 
-export const chatWithAI = async (message: string, context?: string, userKey?: string, model: string = "gemini-3-flash-preview") => {
+export const chatWithAI = async (message: string, context?: string, userKey?: string, model: string = "gemini-3-flash-preview", tools?: any[]) => {
   try {
     const ai = getAI(userKey);
     const response = await ai.models.generateContent({
@@ -112,10 +112,13 @@ export const chatWithAI = async (message: string, context?: string, userKey?: st
         3. Use [TIP: ...] for helpful hints.
         4. Use [SUCCESS: ...] for successful operations.
         5. If you provide web code (HTML/CSS/JS), wrap it in a code block with the language specified (e.g., \`\`\`html).
-        6. Use clear headings and bullet points to keep responses neat.`,
+        6. Use clear headings and bullet points to keep responses neat.
+        
+        If the user asks to create a worker, use the 'proposeWorker' tool to suggest a name and code, do not deploy it automatically.`,
+        tools: tools,
       },
     });
-    return response.text;
+    return response;
   } catch (error: any) {
     console.error("Gemini Chat Error:", error);
     throw error;

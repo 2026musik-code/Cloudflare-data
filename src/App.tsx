@@ -31,6 +31,7 @@ import {
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 import Markdown from 'react-markdown';
+import { Type } from '@google/genai';
 
 import * as cf from './services/cloudflareService';
 import * as ai from './services/geminiService';
@@ -215,7 +216,7 @@ export default function App() {
   
   // AI State
   const [aiOpen, setAiOpen] = useState(false);
-  const [aiMessages, setAiMessages] = useState<{ role: 'user' | 'ai'; content: string }[]>([]);
+  const [aiMessages, setAiMessages] = useState<{ role: 'user' | 'ai'; content: string; proposedWorker?: { name: string, code: string } }[]>([]);
   const [aiInput, setAiInput] = useState('');
   const [aiLoading, setAiLoading] = useState(false);
   const [chatContext, setChatContext] = useState<string>('');
@@ -305,14 +306,42 @@ export default function App() {
     setAiInput('');
     setAiLoading(true);
     
+    const proposeWorkerTool = {
+      functionDeclarations: [{
+        name: "proposeWorker",
+        description: "Propose a new Cloudflare Worker script for the user to review and deploy.",
+        parameters: {
+          type: Type.OBJECT,
+          properties: {
+            workerName: { type: Type.STRING, description: "The name of the worker script." },
+            workerCode: { type: Type.STRING, description: "The JavaScript code for the worker." },
+          },
+          required: ["workerName", "workerCode"],
+        },
+      }],
+    };
+
     try {
       const context = `Current Account: ${selectedAccount?.name}. Current View: ${view}. 
       Workers: ${workers.map(w => w.id).join(', ')}. 
       Zones: ${zones.map(z => z.name).join(', ')}.
       Active Context: ${chatContext || "None"}`;
       
-      const response = await ai.chatWithAI(userMsg, context, geminiKey, selectedModel);
-      setAiMessages(prev => [...prev, { role: 'ai', content: response }]);
+      const response = await ai.chatWithAI(userMsg, context, geminiKey, selectedModel, [proposeWorkerTool]);
+      
+      if (response.functionCalls && response.functionCalls.length > 0) {
+        const call = response.functionCalls[0];
+        if (call.name === 'proposeWorker') {
+          const { workerName, workerCode } = call.args as any;
+          setAiMessages(prev => [...prev, { 
+            role: 'ai', 
+            content: `I have prepared a worker named "${workerName}". Please review the code below and click Deploy to apply it.`,
+            proposedWorker: { name: workerName, code: workerCode }
+          }]);
+        }
+      } else {
+        setAiMessages(prev => [...prev, { role: 'ai', content: response.text || "" }]);
+      }
     } catch (err: any) {
       console.error("AI Chat Error:", err);
       const errorDetail = err.message || "Unknown error";
@@ -858,6 +887,33 @@ export default function App() {
                         >
                           {msg.content}
                         </Markdown>
+                        {msg.proposedWorker && (
+                          <div className="mt-4 p-4 bg-white/5 rounded-xl border border-white/10">
+                            <h4 className="font-bold text-sm mb-2 text-cf-orange">Proposed Worker: {msg.proposedWorker.name}</h4>
+                            <pre className="text-xs bg-black/50 p-2 rounded overflow-x-auto mb-4">
+                              <code>{msg.proposedWorker.code}</code>
+                            </pre>
+                            <button 
+                              onClick={async () => {
+                                setAiLoading(true);
+                                try {
+                                  await cf.upsertWorker(selectedAccount!.id, msg.proposedWorker!.name, msg.proposedWorker!.code);
+                                  const updatedWorkers = await cf.getWorkers(selectedAccount!.id);
+                                  setWorkers(updatedWorkers);
+                                  setAiMessages(prev => prev.map(m => m === msg ? { ...m, proposedWorker: undefined, content: `[SUCCESS: Worker "${msg.proposedWorker!.name}" has been deployed successfully.]` } : m));
+                                } catch (err) {
+                                  console.error(err);
+                                  alert("Failed to deploy worker");
+                                } finally {
+                                  setAiLoading(false);
+                                }
+                              }}
+                              className="px-4 py-2 bg-cf-orange text-white rounded-lg text-sm font-medium hover:bg-cf-orange/90"
+                            >
+                              Deploy Worker
+                            </button>
+                          </div>
+                        )}
                       </div>
                     </div>
                   </div>
