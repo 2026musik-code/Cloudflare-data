@@ -921,11 +921,11 @@ export default function App() {
                 </div>
               </div>
 
-              <div className="flex-1 flex flex-col lg:flex-row min-h-0 overflow-hidden">
-                {/* Left Panel: Controls & AI Prompt */}
-                <div className="w-full lg:w-96 border-b lg:border-b-0 lg:border-r border-dark-border p-6 bg-white/5 space-y-6 overflow-y-auto scrollbar-hide">
-                  <div className="space-y-4">
-                    <div className="space-y-1">
+              <div className="flex-1 flex flex-col min-h-0 overflow-hidden p-6 gap-6">
+                {/* Top Controls: Name, Prompt, Buttons */}
+                <div className="space-y-4">
+                  <div className="flex gap-6">
+                    <div className="flex-1 space-y-1">
                       <label className="text-[10px] font-bold text-white/30 uppercase tracking-widest">Worker Name</label>
                       <input 
                         type="text" 
@@ -937,65 +937,61 @@ export default function App() {
                       />
                     </div>
                     
-                    <div className="space-y-2">
-                      <label className="text-[10px] font-bold text-white/30 uppercase tracking-widest">
-                        {editingWorker.id ? 'AI Instructions' : 'AI Prompt'}
-                      </label>
-                      <div className="flex flex-col gap-3">
-                        <textarea 
-                          placeholder={editingWorker.id 
-                            ? "What would you like to change or improve?" 
-                            : "Describe your worker in detail..."
-                          }
-                          className="w-full bg-white/5 border border-white/10 rounded-xl p-4 text-sm focus:outline-none focus:ring-2 focus:ring-cf-orange/50 resize-none h-48 lg:h-64 transition-all"
-                          value={workerPrompt}
-                          onChange={(e) => setWorkerPrompt(e.target.value)}
-                        />
-                        <Button 
-                          onClick={async () => {
-                            if (!workerPrompt) return;
-                            setAiLoading(true);
-                            try {
-                              let code;
-                              if (editingWorker.id) {
-                                code = await ai.improveWorkerCode(workerCode, workerPrompt, geminiKey, selectedModel);
-                              } else {
-                                code = await ai.generateWorkerCode(workerPrompt, geminiKey, selectedModel);
-                              }
-                              setWorkerCode(code);
-                              setIsCodeGenerated(true);
-                              setWorkerPrompt('');
-                            } finally {
-                              setAiLoading(false);
+                    <div className="flex items-end gap-2">
+                      <Button 
+                        onClick={async () => {
+                          if (!workerPrompt) return;
+                          setAiLoading(true);
+                          try {
+                            let code;
+                            if (editingWorker.id) {
+                              code = await ai.improveWorkerCode(workerCode, workerPrompt, geminiKey, selectedModel);
+                            } else {
+                              code = await ai.generateWorkerCode(workerPrompt, geminiKey, selectedModel);
                             }
-                          }} 
-                          disabled={!workerPrompt || aiLoading}
-                          className="w-full py-3"
-                        >
-                          <Sparkles className="w-4 h-4" />
-                          {editingWorker.id ? 'Improve with AI' : 'Generate Code'}
-                        </Button>
-                      </div>
+                            setWorkerCode(code);
+                            setIsCodeGenerated(true);
+                            setWorkerPrompt('');
+                          } finally {
+                            setAiLoading(false);
+                          }
+                        }} 
+                        disabled={!workerPrompt || aiLoading}
+                        className="py-2"
+                      >
+                        <Sparkles className="w-4 h-4 mr-2" />
+                        {editingWorker.id ? 'Improve' : 'Generate'}
+                      </Button>
+                      <Button 
+                        size="sm" 
+                        className="py-2 shadow-[0_0_20px_rgba(242,125,38,0.1)]"
+                        onClick={saveWorker}
+                        disabled={loading || !workerName || !workerCode}
+                      >
+                        <Zap className="w-4 h-4 mr-2" />
+                        Deploy
+                      </Button>
                     </div>
                   </div>
 
-                  {isCodeGenerated && (
-                    <div className="pt-4 border-t border-white/5">
-                      <Button 
-                        size="lg" 
-                        className="w-full py-4 text-base shadow-[0_0_20px_rgba(242,125,38,0.1)]"
-                        onClick={saveWorker}
-                        disabled={loading || !workerName}
-                      >
-                        <Zap className="w-5 h-5" />
-                        Deploy Worker
-                      </Button>
-                    </div>
-                  )}
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-bold text-white/30 uppercase tracking-widest">
+                      {editingWorker.id ? 'AI Instructions' : 'AI Prompt'}
+                    </label>
+                    <textarea 
+                      placeholder={editingWorker.id 
+                        ? "What would you like to change or improve?" 
+                        : "Describe your worker in detail..."
+                      }
+                      className="w-full bg-white/5 border border-white/10 rounded-xl p-4 text-sm focus:outline-none focus:ring-2 focus:ring-cf-orange/50 resize-none h-24 transition-all"
+                      value={workerPrompt}
+                      onChange={(e) => setWorkerPrompt(e.target.value)}
+                    />
+                  </div>
                 </div>
 
-                {/* Right Panel: Editor */}
-                <div className="flex-1 flex flex-col min-h-0 bg-[#0d0d0d] relative group">
+                {/* Editor Terminal */}
+                <div className="flex-1 flex flex-col min-h-0 bg-[#0d0d0d] rounded-xl overflow-hidden border border-white/5 relative group">
                   <div className="absolute top-3 right-4 z-20 flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                     <span className="text-[10px] font-mono text-white/20 uppercase tracking-widest">JavaScript (ESM)</span>
                   </div>
