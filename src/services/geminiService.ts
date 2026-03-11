@@ -114,7 +114,10 @@ export const chatWithAI = async (message: string, context?: string, userKey?: st
         5. If you provide web code (HTML/CSS/JS), wrap it in a code block with the language specified (e.g., \`\`\`html).
         6. Use clear headings and bullet points to keep responses neat.
         
-        If the user asks to create a worker, use the 'proposeWorker' tool to suggest a name and code, do not deploy it automatically.`,
+        TOOL USAGE RULES:
+        1. ONLY use the 'proposeWorker' tool if the user explicitly asks to "create", "build", or "deploy" a new worker.
+        2. If the user is just asking for code examples, explanations, or general advice, DO NOT use the 'proposeWorker' tool. Provide the code in a markdown code block instead.
+        3. When using 'proposeWorker', ensure the name is descriptive and the code is robust and production-ready.`,
         tools: tools,
       },
     });
