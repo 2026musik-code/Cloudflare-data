@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
   Cloud, 
@@ -220,6 +220,8 @@ export default function App() {
   const [aiInput, setAiInput] = useState('');
   const [aiLoading, setAiLoading] = useState(false);
   const [chatContext, setChatContext] = useState<string>('');
+  const chatRef = useRef<any>(null);
+  const chatHistoryRef = useRef<any[]>([]);
 
   // Editor State
   const [editingWorker, setEditingWorker] = useState<any>(null);
@@ -306,20 +308,56 @@ export default function App() {
     setAiInput('');
     setAiLoading(true);
     
-    const proposeWorkerTool = {
-      functionDeclarations: [{
-        name: "proposeWorker",
-        description: "Propose a new Cloudflare Worker script for the user to review and deploy.",
-        parameters: {
-          type: Type.OBJECT,
-          properties: {
-            workerName: { type: Type.STRING, description: "The name of the worker script." },
-            workerCode: { type: Type.STRING, description: "The JavaScript code for the worker." },
+    const tools = [{
+      functionDeclarations: [
+        {
+          name: "proposeWorker",
+          description: "Propose a new Cloudflare Worker script for the user to review and deploy.",
+          parameters: {
+            type: Type.OBJECT,
+            properties: {
+              workerName: { type: Type.STRING, description: "The name of the worker script." },
+              workerCode: { type: Type.STRING, description: "The JavaScript code for the worker." },
+            },
+            required: ["workerName", "workerCode"],
           },
-          required: ["workerName", "workerCode"],
         },
-      }],
-    };
+        {
+          name: "deployWorker",
+          description: "Directly deploy or update a Cloudflare Worker script. Use this when the user explicitly asks to deploy.",
+          parameters: {
+            type: Type.OBJECT,
+            properties: {
+              workerName: { type: Type.STRING, description: "The name of the worker script." },
+              workerCode: { type: Type.STRING, description: "The JavaScript code for the worker." },
+            },
+            required: ["workerName", "workerCode"],
+          },
+        },
+        {
+          name: "getWorkerCode",
+          description: "Get the JavaScript code of an existing Cloudflare Worker.",
+          parameters: {
+            type: Type.OBJECT,
+            properties: {
+              workerName: { type: Type.STRING, description: "The name of the worker script." },
+            },
+            required: ["workerName"],
+          },
+        },
+        {
+          name: "deleteWorker",
+          description: "Delete an existing Cloudflare Worker.",
+          parameters: {
+            type: Type.OBJECT,
+            properties: {
+              workerName: { type: Type.STRING, description: "The name of the worker script." },
+            },
+            required: ["workerName"],
+          },
+        }
+      ]
+    }];
 
     try {
       const context = `Current Account: ${selectedAccount?.name}. Current View: ${view}. 
@@ -327,21 +365,84 @@ export default function App() {
       Zones: ${zones.map(z => z.name).join(', ')}.
       Active Context: ${chatContext || "None"}`;
       
-      const response = await ai.chatWithAI(userMsg, context, geminiKey, selectedModel, [proposeWorkerTool]);
-      
-      if (response.functionCalls && response.functionCalls.length > 0) {
-        const call = response.functionCalls[0];
-        if (call.name === 'proposeWorker') {
-          const { workerName, workerCode } = call.args as any;
-          setAiMessages(prev => [...prev, { 
-            role: 'ai', 
-            content: `I have prepared a worker named "${workerName}". Please review the code below and click Deploy to apply it.`,
-            proposedWorker: { name: workerName, code: workerCode }
-          }]);
+      let isDone = false;
+      let currentHistory = [...chatHistoryRef.current];
+      let currentMessage = userMsg;
+
+      while (!isDone) {
+        const response = await ai.chatWithAI(currentHistory, currentMessage, context, geminiKey, selectedModel, tools);
+        
+        // Add the user message to history if it's the first turn
+        if (currentMessage) {
+          const last = currentHistory[currentHistory.length - 1];
+          if (last && last.role === 'user') {
+            last.parts.push({ text: currentMessage });
+          } else {
+            currentHistory.push({ role: 'user', parts: [{ text: currentMessage }] });
+          }
+          currentMessage = ""; // Clear for next iterations
         }
-      } else {
-        setAiMessages(prev => [...prev, { role: 'ai', content: response.text || "" }]);
+
+        // Add model response to history
+        if (response.candidates && response.candidates[0].content) {
+          currentHistory.push(response.candidates[0].content);
+        }
+
+        if (response.functionCalls && response.functionCalls.length > 0) {
+          const call = response.functionCalls[0];
+          let toolResult: any = {};
+          
+          try {
+            if (call.name === 'proposeWorker') {
+              const { workerName, workerCode } = call.args as any;
+              setAiMessages(prev => [...prev, { 
+                role: 'ai', 
+                content: `I have prepared a worker named "${workerName}". Please review the code below and click Deploy to apply it.`,
+                proposedWorker: { name: workerName, code: workerCode }
+              }]);
+              toolResult = { success: true, message: "Worker proposed to user. Waiting for user to click Deploy." };
+              isDone = true; // Stop loop and let user interact
+            } else if (call.name === 'deployWorker') {
+              const { workerName, workerCode } = call.args as any;
+              if (!selectedAccount) throw new Error("No account selected");
+              await cf.upsertWorker(selectedAccount.id, workerName, workerCode);
+              toolResult = { success: true, message: `Worker ${workerName} deployed successfully.` };
+              fetchWorkers();
+            } else if (call.name === 'getWorkerCode') {
+              const { workerName } = call.args as any;
+              if (!selectedAccount) throw new Error("No account selected");
+              const code = await cf.getWorkerContent(selectedAccount.id, workerName);
+              toolResult = { success: true, code: code };
+            } else if (call.name === 'deleteWorker') {
+              const { workerName } = call.args as any;
+              if (!selectedAccount) throw new Error("No account selected");
+              await cf.deleteWorker(selectedAccount.id, workerName);
+              toolResult = { success: true, message: `Worker ${workerName} deleted successfully.` };
+              fetchWorkers();
+            }
+          } catch (err: any) {
+            toolResult = { success: false, error: err.message };
+          }
+
+          // Append function response to history for the next turn
+          currentHistory.push({
+            role: 'user',
+            parts: [{
+              functionResponse: {
+                name: call.name,
+                response: toolResult
+              }
+            }]
+          });
+          
+        } else {
+          setAiMessages(prev => [...prev, { role: 'ai', content: response.text || "" }]);
+          isDone = true;
+        }
       }
+      
+      chatHistoryRef.current = currentHistory;
+
     } catch (err: any) {
       console.error("AI Chat Error:", err);
       const errorDetail = err.message || "Unknown error";
@@ -881,7 +982,7 @@ export default function App() {
                                   );
                                 }
                               }
-                              return <p>{children}</p>;
+                              return <div className="my-2">{children}</div>;
                             }
                           }}
                         >

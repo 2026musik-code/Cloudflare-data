@@ -95,12 +95,58 @@ export const analyzeWorker = async (code: string, userKey?: string, model: strin
   }
 };
 
-export const chatWithAI = async (message: string, context?: string, userKey?: string, model: string = "gemini-3-flash-preview", tools?: any[]) => {
+export const createChatSession = (context?: string, userKey?: string, model: string = "gemini-3-flash-preview", tools?: any[]) => {
+  const ai = getAI(userKey);
+  return ai.chats.create({
+    model: model,
+    config: {
+      systemInstruction: `You are a Cloudflare expert assistant. You help users manage their Workers and DNS records. 
+      Context about the current state: ${context || "No context provided"}.
+      Be professional, concise, and helpful.
+      
+      FORMATTING RULES:
+      1. Use **bold** for important terms.
+      2. Use [IMPORTANT: ...] for critical warnings or labels.
+      3. Use [TIP: ...] for helpful hints.
+      4. Use [SUCCESS: ...] for successful operations.
+      5. If you provide web code (HTML/CSS/JS), wrap it in a code block with the language specified (e.g., \`\`\`html).
+      6. Use clear headings and bullet points to keep responses neat.
+      
+      TOOL USAGE RULES:
+      1. Use tools to actively perform tasks for the user. If the user asks you to create, deploy, read, or delete a worker, use the appropriate tool.
+      2. If you deploy a worker, you do not need to use 'proposeWorker'.
+      3. If the user is just asking for code examples, explanations, or general advice, provide the code in a markdown code block instead.`,
+      tools: tools,
+    },
+  });
+};
+
+export const chatWithAI = async (
+  history: any[],
+  message: string,
+  context?: string,
+  userKey?: string,
+  model: string = "gemini-3-flash-preview",
+  tools?: any[]
+) => {
   try {
     const ai = getAI(userKey);
+    
+    // Deep copy history to avoid mutating the original array
+    const contents = JSON.parse(JSON.stringify(history));
+    
+    if (message) {
+      const last = contents[contents.length - 1];
+      if (last && last.role === 'user') {
+        last.parts.push({ text: message });
+      } else {
+        contents.push({ role: 'user', parts: [{ text: message }] });
+      }
+    }
+
     const response = await ai.models.generateContent({
       model: model,
-      contents: message,
+      contents: contents,
       config: {
         systemInstruction: `You are a Cloudflare expert assistant. You help users manage their Workers and DNS records. 
         Context about the current state: ${context || "No context provided"}.
@@ -115,10 +161,11 @@ export const chatWithAI = async (message: string, context?: string, userKey?: st
         6. Use clear headings and bullet points to keep responses neat.
         
         TOOL USAGE RULES:
-        1. ONLY use the 'proposeWorker' tool if the user explicitly asks to "create", "build", or "deploy" a new worker.
-        2. If the user is just asking for code examples, explanations, or general advice, DO NOT use the 'proposeWorker' tool. Provide the code in a markdown code block instead.
-        3. When using 'proposeWorker', ensure the name is descriptive and the code is robust and production-ready.`,
+        1. Use tools to actively perform tasks for the user. If the user asks you to create, deploy, read, or delete a worker, use the appropriate tool.
+        2. If you deploy a worker, you do not need to use 'proposeWorker'.
+        3. If the user is just asking for code examples, explanations, or general advice, provide the code in a markdown code block instead.`,
         tools: tools,
+        toolConfig: { includeServerSideToolInvocations: true } as any,
       },
     });
     return response;
