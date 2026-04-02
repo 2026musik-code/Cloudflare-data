@@ -46,18 +46,25 @@ async function startServer() {
       return res.status(401).json({ error: "No API Token provided" });
     }
 
-    // Ensure token has Bearer prefix if it's a token, but don't double it
-    if (!token.startsWith("Bearer ") && !token.startsWith("bearer ")) {
-      token = `Bearer ${token}`;
-    }
-
     const cfPath = req.params[0];
     const url = `https://api.cloudflare.com/client/v4/${cfPath}`;
 
     const headers: any = {
-      Authorization: token,
       "User-Agent": "Dashbro-AI/1.1.0",
     };
+
+    // Check if it's a Global API Key (email:key)
+    let rawToken = token.replace(/^(bearer\s+|Bearer\s+)+/i, '').trim();
+    // Strip quotes if user accidentally included them
+    rawToken = rawToken.replace(/^["']|["']$/g, '');
+    
+    if (rawToken.includes(':')) {
+      const [email, key] = rawToken.split(':', 2);
+      headers['X-Auth-Email'] = email;
+      headers['X-Auth-Key'] = key;
+    } else {
+      headers['Authorization'] = `Bearer ${rawToken}`;
+    }
 
     // Forward content-type if present
     if (req.headers["content-type"]) {

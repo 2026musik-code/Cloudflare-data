@@ -115,7 +115,10 @@ export const createChatSession = (context?: string, userKey?: string, model: str
       TOOL USAGE RULES:
       1. Use tools to actively perform tasks for the user. If the user asks you to create, deploy, read, or delete a worker, use the appropriate tool.
       2. If you deploy a worker, you do not need to use 'proposeWorker'.
-      3. If the user is just asking for code examples, explanations, or general advice, provide the code in a markdown code block instead.`,
+      3. If the user is just asking for code examples, explanations, or general advice, provide the code in a markdown code block instead.
+      4. When asked to create a full web application that requires storage (like KV or R2), you MUST first use the 'createKvNamespace' or 'createR2Bucket' tools to create the necessary resources.
+      5. After creating the resources, use the 'deployWorker' tool and pass the 'bindings' parameter to link the created KV namespaces or R2 buckets to the worker. For KV, use type 'kv_namespace' and the returned 'id' as 'namespace_id'. For R2, use type 'r2_bucket' and the 'name' as 'bucket_name'.
+      6. Once the deployment is complete, provide a summary to the user explaining what was created (e.g., "I created a KV namespace named 'my-kv' and deployed the worker 'my-app'").`,
       tools: tools,
     },
   });
@@ -163,7 +166,10 @@ export const chatWithAI = async (
         TOOL USAGE RULES:
         1. Use tools to actively perform tasks for the user. If the user asks you to create, deploy, read, or delete a worker, use the appropriate tool.
         2. If you deploy a worker, you do not need to use 'proposeWorker'.
-        3. If the user is just asking for code examples, explanations, or general advice, provide the code in a markdown code block instead.`,
+        3. If the user is just asking for code examples, explanations, or general advice, provide the code in a markdown code block instead.
+        4. When asked to create a full web application that requires storage (like KV or R2), you MUST first use the 'createKvNamespace' or 'createR2Bucket' tools to create the necessary resources.
+        5. After creating the resources, use the 'deployWorker' tool and pass the 'bindings' parameter to link the created KV namespaces or R2 buckets to the worker. For KV, use type 'kv_namespace' and the returned 'id' as 'namespace_id'. For R2, use type 'r2_bucket' and the 'name' as 'bucket_name'.
+        6. Once the deployment is complete, provide a summary to the user explaining what was created (e.g., "I created a KV namespace named 'my-kv' and deployed the worker 'my-app'").`,
         tools: tools,
         toolConfig: { includeServerSideToolInvocations: true } as any,
       },

@@ -330,6 +330,20 @@ export default function App() {
             properties: {
               workerName: { type: Type.STRING, description: "The name of the worker script." },
               workerCode: { type: Type.STRING, description: "The JavaScript code for the worker." },
+              bindings: { 
+                type: Type.ARRAY, 
+                description: "Optional bindings for KV, R2, etc.",
+                items: {
+                  type: Type.OBJECT,
+                  properties: {
+                    type: { type: Type.STRING, description: "The type of binding (e.g., 'kv_namespace', 'r2_bucket')" },
+                    name: { type: Type.STRING, description: "The name of the binding in the worker code" },
+                    namespace_id: { type: Type.STRING, description: "The ID of the KV namespace (if type is kv_namespace)" },
+                    bucket_name: { type: Type.STRING, description: "The name of the R2 bucket (if type is r2_bucket)" }
+                  },
+                  required: ["type", "name"]
+                }
+              }
             },
             required: ["workerName", "workerCode"],
           },
@@ -354,6 +368,28 @@ export default function App() {
               workerName: { type: Type.STRING, description: "The name of the worker script." },
             },
             required: ["workerName"],
+          },
+        },
+        {
+          name: "createKvNamespace",
+          description: "Create a new KV namespace.",
+          parameters: {
+            type: Type.OBJECT,
+            properties: {
+              title: { type: Type.STRING, description: "The title of the new KV namespace." },
+            },
+            required: ["title"],
+          },
+        },
+        {
+          name: "createR2Bucket",
+          description: "Create a new R2 bucket.",
+          parameters: {
+            type: Type.OBJECT,
+            properties: {
+              name: { type: Type.STRING, description: "The name of the new R2 bucket." },
+            },
+            required: ["name"],
           },
         }
       ]
@@ -389,50 +425,65 @@ export default function App() {
         }
 
         if (response.functionCalls && response.functionCalls.length > 0) {
-          const call = response.functionCalls[0];
-          let toolResult: any = {};
+          const functionResponses = [];
           
-          try {
-            if (call.name === 'proposeWorker') {
-              const { workerName, workerCode } = call.args as any;
-              setAiMessages(prev => [...prev, { 
-                role: 'ai', 
-                content: `I have prepared a worker named "${workerName}". Please review the code below and click Deploy to apply it.`,
-                proposedWorker: { name: workerName, code: workerCode }
-              }]);
-              toolResult = { success: true, message: "Worker proposed to user. Waiting for user to click Deploy." };
-              isDone = true; // Stop loop and let user interact
-            } else if (call.name === 'deployWorker') {
-              const { workerName, workerCode } = call.args as any;
-              if (!selectedAccount) throw new Error("No account selected");
-              await cf.upsertWorker(selectedAccount.id, workerName, workerCode);
-              toolResult = { success: true, message: `Worker ${workerName} deployed successfully.` };
-              fetchWorkers();
-            } else if (call.name === 'getWorkerCode') {
-              const { workerName } = call.args as any;
-              if (!selectedAccount) throw new Error("No account selected");
-              const code = await cf.getWorkerContent(selectedAccount.id, workerName);
-              toolResult = { success: true, code: code };
-            } else if (call.name === 'deleteWorker') {
-              const { workerName } = call.args as any;
-              if (!selectedAccount) throw new Error("No account selected");
-              await cf.deleteWorker(selectedAccount.id, workerName);
-              toolResult = { success: true, message: `Worker ${workerName} deleted successfully.` };
-              fetchWorkers();
+          for (const call of response.functionCalls) {
+            let toolResult: any = {};
+            
+            try {
+              if (call.name === 'proposeWorker') {
+                const { workerName, workerCode } = call.args as any;
+                setAiMessages(prev => [...prev, { 
+                  role: 'ai', 
+                  content: `I have prepared a worker named "${workerName}". Please review the code below and click Deploy to apply it.`,
+                  proposedWorker: { name: workerName, code: workerCode }
+                }]);
+                toolResult = { success: true, message: "Worker proposed to user. Waiting for user to click Deploy." };
+                isDone = true; // Stop loop and let user interact
+              } else if (call.name === 'deployWorker') {
+                const { workerName, workerCode, bindings } = call.args as any;
+                if (!selectedAccount) throw new Error("No account selected");
+                await cf.upsertWorker(selectedAccount.id, workerName, workerCode, bindings);
+                toolResult = { success: true, message: `Worker ${workerName} deployed successfully.` };
+                fetchWorkers();
+              } else if (call.name === 'getWorkerCode') {
+                const { workerName } = call.args as any;
+                if (!selectedAccount) throw new Error("No account selected");
+                const code = await cf.getWorkerContent(selectedAccount.id, workerName);
+                toolResult = { success: true, code: code };
+              } else if (call.name === 'deleteWorker') {
+                const { workerName } = call.args as any;
+                if (!selectedAccount) throw new Error("No account selected");
+                await cf.deleteWorker(selectedAccount.id, workerName);
+                toolResult = { success: true, message: `Worker ${workerName} deleted successfully.` };
+                fetchWorkers();
+              } else if (call.name === 'createKvNamespace') {
+                const { title } = call.args as any;
+                if (!selectedAccount) throw new Error("No account selected");
+                const result = await cf.createKvNamespace(selectedAccount.id, title);
+                toolResult = { success: true, message: `KV namespace ${title} created successfully.`, id: result.id };
+              } else if (call.name === 'createR2Bucket') {
+                const { name } = call.args as any;
+                if (!selectedAccount) throw new Error("No account selected");
+                await cf.createR2Bucket(selectedAccount.id, name);
+                toolResult = { success: true, message: `R2 bucket ${name} created successfully.` };
+              }
+            } catch (err: any) {
+              toolResult = { success: false, error: err.message };
             }
-          } catch (err: any) {
-            toolResult = { success: false, error: err.message };
-          }
 
-          // Append function response to history for the next turn
-          currentHistory.push({
-            role: 'user',
-            parts: [{
+            functionResponses.push({
               functionResponse: {
                 name: call.name,
                 response: toolResult
               }
-            }]
+            });
+          }
+
+          // Append function responses to history for the next turn
+          currentHistory.push({
+            role: 'user',
+            parts: functionResponses
           });
           
         } else {
@@ -548,7 +599,7 @@ export default function App() {
               <p className="mt-2 text-xs text-white/40">
                 Requires: <b>Account.Workers Scripts (Edit)</b>, <b>Zone.DNS (Read/Edit)</b>, and <b>Account.Account (Read)</b>.
                 <br />
-                <span className="text-cf-orange/60">Note: Use an API Token, not a Global API Key.</span>
+                <span className="text-cf-orange/60">Note: Use an API Token, or a Global API Key in the format <b>email:key</b></span>
               </p>
             </div>
             
