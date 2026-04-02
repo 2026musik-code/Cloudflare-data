@@ -252,9 +252,19 @@ export default function App() {
       localStorage.setItem('cf_token', inputToken);
       setToken(inputToken);
       setIsLoggedIn(true);
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
-      alert('Invalid Token or API Error');
+      const cfError = err.response?.data?.errors?.[0]?.message;
+      const cfErrorCode = err.response?.data?.errors?.[0]?.code;
+      const errorChainCode = err.response?.data?.errors?.[0]?.error_chain?.[0]?.code;
+      
+      if (cfError === "Authentication error" || cfErrorCode === 10000) {
+        alert("Authentication error. Please ensure your token is correct.");
+      } else if (errorChainCode === 6111 || cfErrorCode === 6003) {
+        alert("Invalid token format. Please ensure there are no spaces or invalid characters in your token.");
+      } else {
+        alert(`Login failed: ${cfError || err.message || 'Invalid Token or API Error'}`);
+      }
       localStorage.removeItem('cf_token');
     } finally {
       setLoading(false);

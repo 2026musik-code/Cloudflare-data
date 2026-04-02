@@ -65,8 +65,14 @@ export const generateScopedToken = async (globalKey: string) => {
   } catch (error: any) {
     console.error("Error generating token:", error);
     const cfError = error.response?.data?.errors?.[0]?.message;
-    if (cfError === "Authentication error") {
+    const cfErrorCode = error.response?.data?.errors?.[0]?.code;
+    const errorChainCode = error.response?.data?.errors?.[0]?.error_chain?.[0]?.code;
+    
+    if (cfError === "Authentication error" || cfErrorCode === 10000) {
       throw new Error("Authentication error. Please ensure you are using your Global API Key (not an API Token) and the format is exactly 'your-email@example.com:your-global-api-key'.");
+    }
+    if (errorChainCode === 6111 || cfErrorCode === 6003) {
+      throw new Error("Invalid token format. Please ensure there are no spaces or invalid characters in your token or email:key.");
     }
     throw new Error(cfError || "Failed to generate token. Make sure you provided a valid Global API Key (email:key).");
   }
@@ -100,11 +106,7 @@ export const upsertWorker = async (accountId: string, scriptName: string, conten
     }));
     formData.append('worker.js', new Blob([content], { type: 'application/javascript+module' }), 'worker.js');
     
-    const response = await api.put(`/accounts/${accountId}/workers/scripts/${scriptName}`, formData, {
-      headers: {
-        'Content-Type': 'multipart/form-data',
-      },
-    });
+    const response = await api.put(`/accounts/${accountId}/workers/scripts/${scriptName}`, formData);
     return response.data.result;
   } else {
     if (!bindings || bindings.length === 0) {
@@ -122,11 +124,7 @@ export const upsertWorker = async (accountId: string, scriptName: string, conten
       }));
       formData.append('script', new Blob([content], { type: 'application/javascript' }), 'script.js');
       
-      const response = await api.put(`/accounts/${accountId}/workers/scripts/${scriptName}`, formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-        },
-      });
+      const response = await api.put(`/accounts/${accountId}/workers/scripts/${scriptName}`, formData);
       return response.data.result;
     }
   }

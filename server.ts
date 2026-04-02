@@ -14,6 +14,10 @@ async function startServer() {
     fs.mkdirSync(STORAGE_DIR, { recursive: true });
   }
 
+  // Proxy for Cloudflare API to avoid CORS issues
+  // Use raw body parser for Cloudflare API to correctly forward multipart/form-data and other types
+  app.use("/api/cloudflare", express.raw({ type: '*/*', limit: '50mb' }));
+
   app.use(express.json());
   app.use(express.text({ type: ['application/javascript', 'text/plain', 'application/octet-stream'] }));
 
