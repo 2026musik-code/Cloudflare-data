@@ -479,7 +479,8 @@ export default function App() {
                 toolResult = { success: true, message: `R2 bucket ${name} created successfully.` };
               }
             } catch (err: any) {
-              toolResult = { success: false, error: err.message };
+              const cfError = err.response?.data?.errors?.[0]?.message || err.response?.data || err.message;
+              toolResult = { success: false, error: typeof cfError === 'string' ? cfError : JSON.stringify(cfError) };
             }
 
             functionResponses.push({

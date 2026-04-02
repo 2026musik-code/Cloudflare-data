@@ -117,7 +117,29 @@ export const createChatSession = (context?: string, userKey?: string, model: str
       2. Use Tailwind CSS via CDN (<script src="https://cdn.tailwindcss.com"></script>) for styling by default.
       3. Include modern typography (e.g., Inter or Roboto via Google Fonts), smooth animations, glassmorphism, and responsive layouts.
       4. DO NOT generate basic, plain, or outdated HTML. Make the UI look professional, like a modern SaaS application or a high-quality landing page.
-      5. If building a full-stack app with Workers, ensure the frontend code is embedded cleanly within the Worker response.
+      5. CRITICAL: When deploying a web app to a Worker, the 'workerCode' MUST be a valid Cloudflare Worker script. You CANNOT deploy raw HTML or React components directly. You MUST embed the HTML inside a Worker fetch handler.
+      Example of a valid Worker script for a web app:
+      \`\`\`javascript
+      export default {
+        async fetch(request, env, ctx) {
+          const html = \`<!DOCTYPE html>
+          <html lang="en">
+          <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <script src="https://cdn.tailwindcss.com"></script>
+            <title>Modern Web App</title>
+          </head>
+          <body class="bg-gray-900 text-white">
+            <div class="min-h-screen flex items-center justify-center">
+              <h1 class="text-4xl font-bold">Hello World</h1>
+            </div>
+          </body>
+          </html>\`;
+          return new Response(html, { headers: { 'Content-Type': 'text/html' } });
+        }
+      };
+      \`\`\`
       
       TOOL USAGE RULES:
       1. Use tools to actively perform tasks for the user. If the user asks you to create, deploy, read, or delete a worker, use the appropriate tool.
@@ -175,7 +197,29 @@ export const chatWithAI = async (
         2. Use Tailwind CSS via CDN (<script src="https://cdn.tailwindcss.com"></script>) for styling by default.
         3. Include modern typography (e.g., Inter or Roboto via Google Fonts), smooth animations, glassmorphism, and responsive layouts.
         4. DO NOT generate basic, plain, or outdated HTML. Make the UI look professional, like a modern SaaS application or a high-quality landing page.
-        5. If building a full-stack app with Workers, ensure the frontend code is embedded cleanly within the Worker response.
+        5. CRITICAL: When deploying a web app to a Worker, the 'workerCode' MUST be a valid Cloudflare Worker script. You CANNOT deploy raw HTML or React components directly. You MUST embed the HTML inside a Worker fetch handler.
+        Example of a valid Worker script for a web app:
+        \`\`\`javascript
+        export default {
+          async fetch(request, env, ctx) {
+            const html = \`<!DOCTYPE html>
+            <html lang="en">
+            <head>
+              <meta charset="UTF-8">
+              <meta name="viewport" content="width=device-width, initial-scale=1.0">
+              <script src="https://cdn.tailwindcss.com"></script>
+              <title>Modern Web App</title>
+            </head>
+            <body class="bg-gray-900 text-white">
+              <div class="min-h-screen flex items-center justify-center">
+                <h1 class="text-4xl font-bold">Hello World</h1>
+              </div>
+            </body>
+            </html>\`;
+            return new Response(html, { headers: { 'Content-Type': 'text/html' } });
+          }
+        };
+        \`\`\`
         
         TOOL USAGE RULES:
         1. Use tools to actively perform tasks for the user. If the user asks you to create, deploy, read, or delete a worker, use the appropriate tool.
