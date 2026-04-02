@@ -1288,9 +1288,9 @@ export default function App() {
                       localStorage.setItem('gemini_model', e.target.value);
                     }}
                   >
-                    <option value="gemini-2.5-flash" className="bg-dark-card">Gemini 2.5 Flash</option>
-                    <option value="gemini-3.1-flash-lite-preview" className="bg-dark-card">Gemini 2.5 Flash Lite</option>
-                    <option value="gemini-3-flash-preview" className="bg-dark-card">Gemini 3 Flash</option>
+                    <option value="gemini-3-flash-preview" className="bg-dark-card">Gemini 3 Flash Preview</option>
+                    <option value="gemini-3.1-pro-preview" className="bg-dark-card">Gemini 3.1 Pro Preview</option>
+                    <option value="gemini-3.1-flash-lite-preview" className="bg-dark-card">Gemini 3.1 Flash Lite Preview</option>
                   </select>
                 </div>
 
