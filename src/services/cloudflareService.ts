@@ -12,6 +12,66 @@ export const setAuthToken = (token: string) => {
   api.defaults.headers.common['Authorization'] = `Bearer ${cleanToken}`;
 };
 
+export const generateScopedToken = async (globalKey: string) => {
+  setAuthToken(globalKey);
+  
+  try {
+    const groupsRes = await api.get('/user/tokens/permission_groups');
+    const groups = groupsRes.data.result;
+    
+    const findGroupId = (nameIncludes: string[]) => {
+      const matchedGroups = groups.filter((g: any) => {
+        return nameIncludes.every(name => g.name.toLowerCase().includes(name.toLowerCase()));
+      });
+      if (matchedGroups.length === 0) throw new Error(`Permission group not found for: ${nameIncludes.join(' ')}`);
+      matchedGroups.sort((a: any, b: any) => a.name.length - b.name.length);
+      return matchedGroups[0].id;
+    };
+
+    const accountReadId = findGroupId(['account', 'read']);
+    const dnsEditId = findGroupId(['dns', 'write']);
+    const workersEditId = findGroupId(['workers', 'scripts', 'write']);
+    const kvEditId = findGroupId(['kv', 'storage', 'write']);
+    const r2EditId = findGroupId(['r2', 'write']);
+
+    const tokenRes = await api.post('/user/tokens', {
+      name: `Dashbro Auto-Generated Token - ${new Date().toISOString().split('T')[0]}`,
+      policies: [
+        {
+          effect: 'allow',
+          resources: {
+            'com.cloudflare.api.account.*': '*'
+          },
+          permission_groups: [
+            { id: accountReadId },
+            { id: workersEditId },
+            { id: kvEditId },
+            { id: r2EditId }
+          ]
+        },
+        {
+          effect: 'allow',
+          resources: {
+            'com.cloudflare.api.zone.*': '*'
+          },
+          permission_groups: [
+            { id: dnsEditId }
+          ]
+        }
+      ]
+    });
+
+    return tokenRes.data.result.value;
+  } catch (error: any) {
+    console.error("Error generating token:", error);
+    const cfError = error.response?.data?.errors?.[0]?.message;
+    if (cfError === "Authentication error") {
+      throw new Error("Authentication error. Please ensure you are using your Global API Key (not an API Token) and the format is exactly 'your-email@example.com:your-global-api-key'.");
+    }
+    throw new Error(cfError || "Failed to generate token. Make sure you provided a valid Global API Key (email:key).");
+  }
+};
+
 export const getAccounts = async () => {
   const response = await api.get('/accounts');
   return response.data.result;

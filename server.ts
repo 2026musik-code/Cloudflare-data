@@ -59,7 +59,9 @@ async function startServer() {
     rawToken = rawToken.replace(/^["']|["']$/g, '');
     
     if (rawToken.includes(':')) {
-      const [email, key] = rawToken.split(':', 2);
+      const parts = rawToken.split(':');
+      const email = parts[0].trim();
+      const key = parts.slice(1).join(':').trim();
       headers['X-Auth-Email'] = email;
       headers['X-Auth-Key'] = key;
     } else {

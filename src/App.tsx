@@ -570,6 +570,24 @@ export default function App() {
     }
   };
 
+  const handleGenerateToken = async () => {
+    if (!token.includes(':')) {
+      alert("Please enter your Global API Key in the format 'email:key' to generate a token.");
+      return;
+    }
+    setLoading(true);
+    try {
+      const newToken = await cf.generateScopedToken(token);
+      setToken(newToken);
+      alert("Success! A new scoped token has been generated and inserted. You can now click 'Connect Dashboard'.\n\nFor your security, your Global API Key has not been saved.");
+    } catch (err: any) {
+      console.error("Generate Token Error:", err);
+      alert(`Error generating token: ${err.message}`);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   if (!isLoggedIn) {
     return (
       <div className="min-h-screen flex items-center justify-center p-4 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-from)_0%,_transparent_100%)] from-cf-orange/10">
@@ -588,28 +606,47 @@ export default function App() {
           
           <Card className="space-y-6">
             <div>
-              <label className="block text-sm font-medium text-white/70 mb-2">Cloudflare API Token</label>
+              <label className="block text-sm font-medium text-white/70 mb-2">Cloudflare API Token / Global Key</label>
               <input 
                 type="password"
-                placeholder="Paste your token here..."
+                placeholder="Paste your token or email:key here..."
                 className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-cf-orange/50 transition-all"
                 value={token}
                 onChange={(e) => setToken(e.target.value)}
               />
               <p className="mt-2 text-xs text-white/40">
-                Requires: <b>Account.Workers Scripts (Edit)</b>, <b>Zone.DNS (Read/Edit)</b>, and <b>Account.Account (Read)</b>.
-                <br />
-                <span className="text-cf-orange/60">Note: Use an API Token, or a Global API Key in the format <b>email:key</b></span>
+                Requires: <b>Workers Scripts (Edit)</b>, <b>Workers KV Storage (Edit)</b>, <b>R2 Storage (Edit)</b>, <b>Zone.DNS (Edit)</b>, and <b>Account (Read)</b>.
               </p>
             </div>
             
-            <Button 
-              className="w-full py-3" 
-              onClick={() => handleLogin(token)}
-              disabled={loading || !token}
-            >
-              {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Connect Dashboard'}
-            </Button>
+            <div className="space-y-3">
+              <Button 
+                className="w-full py-3" 
+                onClick={() => handleLogin(token)}
+                disabled={loading || !token}
+              >
+                {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Connect Dashboard'}
+              </Button>
+
+              <div className="relative flex items-center py-2">
+                <div className="flex-grow border-t border-white/10"></div>
+                <span className="flex-shrink-0 mx-4 text-white/30 text-xs uppercase tracking-wider">Or</span>
+                <div className="flex-grow border-t border-white/10"></div>
+              </div>
+
+              <button 
+                onClick={handleGenerateToken}
+                disabled={loading || !token.includes(':')}
+                className="w-full bg-white/5 hover:bg-white/10 text-white font-medium py-3 px-4 rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 border border-white/10"
+                title={!token.includes(':') ? "Enter your Global API Key (email:key) above first" : ""}
+              >
+                {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : <Shield className="w-5 h-5" />}
+                Auto-Generate Scoped Token
+              </button>
+              <p className="text-center text-xs text-white/40 leading-relaxed">
+                Enter your Global API Key above and click this to automatically create a secure, limited-access token.
+              </p>
+            </div>
           </Card>
         </motion.div>
       </div>
