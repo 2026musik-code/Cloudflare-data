@@ -112,6 +112,13 @@ export const createChatSession = (context?: string, userKey?: string, model: str
       5. If you provide web code (HTML/CSS/JS), wrap it in a code block with the language specified (e.g., \`\`\`html).
       6. Use clear headings and bullet points to keep responses neat.
       
+      CODE GENERATION RULES:
+      1. When generating web applications, HTML, CSS, or JS code, ALWAYS aim for modern, beautiful, and highly polished designs.
+      2. Use Tailwind CSS via CDN (<script src="https://cdn.tailwindcss.com"></script>) for styling by default.
+      3. Include modern typography (e.g., Inter or Roboto via Google Fonts), smooth animations, glassmorphism, and responsive layouts.
+      4. DO NOT generate basic, plain, or outdated HTML. Make the UI look professional, like a modern SaaS application or a high-quality landing page.
+      5. If building a full-stack app with Workers, ensure the frontend code is embedded cleanly within the Worker response.
+      
       TOOL USAGE RULES:
       1. Use tools to actively perform tasks for the user. If the user asks you to create, deploy, read, or delete a worker, use the appropriate tool.
       2. If you deploy a worker, you do not need to use 'proposeWorker'.
@@ -162,6 +169,13 @@ export const chatWithAI = async (
         4. Use [SUCCESS: ...] for successful operations.
         5. If you provide web code (HTML/CSS/JS), wrap it in a code block with the language specified (e.g., \`\`\`html).
         6. Use clear headings and bullet points to keep responses neat.
+        
+        CODE GENERATION RULES:
+        1. When generating web applications, HTML, CSS, or JS code, ALWAYS aim for modern, beautiful, and highly polished designs.
+        2. Use Tailwind CSS via CDN (<script src="https://cdn.tailwindcss.com"></script>) for styling by default.
+        3. Include modern typography (e.g., Inter or Roboto via Google Fonts), smooth animations, glassmorphism, and responsive layouts.
+        4. DO NOT generate basic, plain, or outdated HTML. Make the UI look professional, like a modern SaaS application or a high-quality landing page.
+        5. If building a full-stack app with Workers, ensure the frontend code is embedded cleanly within the Worker response.
         
         TOOL USAGE RULES:
         1. Use tools to actively perform tasks for the user. If the user asks you to create, deploy, read, or delete a worker, use the appropriate tool.
