@@ -145,6 +145,25 @@ export const listKvNamespaces = async (accountId: string) => {
   return response.data.result;
 };
 
+export const writeKvValue = async (accountId: string, namespaceId: string, key: string, value: string) => {
+  const response = await api.put(`/accounts/${accountId}/storage/kv/namespaces/${namespaceId}/values/${key}`, value, {
+    headers: {
+      'Content-Type': 'text/plain'
+    }
+  });
+  return response.data.success;
+};
+
+export const readKvValue = async (accountId: string, namespaceId: string, key: string) => {
+  try {
+    const response = await api.get(`/accounts/${accountId}/storage/kv/namespaces/${namespaceId}/values/${key}`);
+    return response.data;
+  } catch (error: any) {
+    if (error.response?.status === 404) return null;
+    throw error;
+  }
+};
+
 export const createR2Bucket = async (accountId: string, name: string) => {
   const response = await api.post(`/accounts/${accountId}/r2/buckets`, { name });
   return response.data.result;

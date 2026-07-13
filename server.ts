@@ -43,6 +43,36 @@ async function startServer() {
     res.json({ success: true });
   });
 
+  // Proxy for Azkha AI API
+  app.all("/api/azkha/*", async (req, res) => {
+    const path = req.params[0];
+    const url = `https://api.azkhavps.my.id/v1/${path}`;
+    const headers: any = {
+      "Content-Type": req.headers["content-type"] || "application/json",
+      "User-Agent": "AIMHC-CLI/1.0"
+    };
+
+    if (req.headers.authorization) {
+      headers["Authorization"] = req.headers.authorization;
+    }
+
+    try {
+      const response = await axios({
+        method: req.method,
+        url,
+        headers,
+        data: req.method !== "GET" ? req.body : undefined,
+        responseType: 'stream',
+        validateStatus: () => true
+      });
+      
+      res.status(response.status);
+      response.data.pipe(res);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   // Proxy for Cloudflare API to avoid CORS issues
   app.all("/api/cloudflare/*", async (req, res) => {
     let token = req.headers.authorization;
@@ -101,7 +131,12 @@ async function startServer() {
         res.status(response.status).send(response.data);
       }
     } catch (error: any) {
-      console.error("Cloudflare Proxy Error:", error.response?.data || error.message);
+      const status = error.response?.status || 500;
+      // Only log server-side errors (5xx) to the console to prevent alarming users about their own bad tokens
+      if (status >= 500) {
+        console.error("Cloudflare Proxy Error:", error.response?.data || error.message);
+      }
+      
       const errorData = error.response?.data;
       
       // If it's a string (like a script error), send it as is, otherwise parse

@@ -31,7 +31,15 @@ import {
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 import Markdown from 'react-markdown';
-import { Type } from '@google/genai';
+
+export enum Type {
+  STRING = "STRING",
+  NUMBER = "NUMBER",
+  INTEGER = "INTEGER",
+  BOOLEAN = "BOOLEAN",
+  ARRAY = "ARRAY",
+  OBJECT = "OBJECT",
+}
 
 import * as cf from './services/cloudflareService';
 import * as ai from './services/geminiService';
@@ -111,6 +119,27 @@ const Card = ({ children, className }: { children: React.ReactNode; className?: 
 
 // --- Main App ---
 
+const getProviderName = (modelId: string) => {
+  if (modelId.startsWith('ag/')) return 'Antigravity';
+  if (modelId.startsWith('kc/')) return 'Kilo Code';
+  if (modelId.startsWith('cl/')) return 'Cline';
+  if (modelId.startsWith('kr/')) return 'Kiro AI';
+  if (modelId.startsWith('nim/')) return 'NVIDIA NIM';
+  if (modelId.startsWith('cf/')) return 'Cloudflare';
+  if (modelId.startsWith('oc/')) return 'Open Code Free';
+  return 'Other';
+};
+
+const groupModels = (models: string[]) => {
+  const groups: Record<string, string[]> = {};
+  models.forEach(m => {
+    const provider = getProviderName(m);
+    if (!groups[provider]) groups[provider] = [];
+    groups[provider].push(m);
+  });
+  return groups;
+};
+
 export default function App() {
   const [token, setToken] = useState<string>(localStorage.getItem('cf_token') || '');
   const [isLoggedIn, setIsLoggedIn] = useState(false);
@@ -137,7 +166,10 @@ export default function App() {
   const [newKeyValue, setNewKeyValue] = useState('');
   const [keyStatus, setKeyStatus] = useState<Record<string, 'checking' | 'connected' | 'failed' | 'idle'>>({});
   const [isSyncing, setIsSyncing] = useState(false);
-  const [selectedModel, setSelectedModel] = useState<string>(localStorage.getItem('gemini_model') || 'gemini-3-flash-preview');
+  const [selectedModel, setSelectedModel] = useState<string>(localStorage.getItem('gemini_model') || 'kc/google/gemini-2.5-pro');
+  const [availableModels, setAvailableModels] = useState<string[]>([]);
+  const [kvNamespaces, setKvNamespaces] = useState<any[]>([]);
+  const [selectedKvNamespace, setSelectedKvNamespace] = useState<string>('');
 
   const syncKeysToR2 = async (keysToSync = savedKeys) => {
     setIsSyncing(true);
@@ -235,7 +267,31 @@ export default function App() {
       handleLogin(token);
     }
     loadKeysFromR2();
+    
+    // Fetch models on load
+    const loadModels = async () => {
+       const models = await ai.fetchModels(geminiKey);
+       if (models.length > 0) setAvailableModels(models);
+    };
+    loadModels();
   }, []);
+
+  const fetchKvNamespaces = async () => {
+    if (selectedAccount) {
+      try {
+        const list = await cf.listKvNamespaces(selectedAccount.id);
+        setKvNamespaces(list);
+      } catch (err) {
+        console.error("Failed to load KV namespaces", err);
+      }
+    }
+  };
+
+  useEffect(() => {
+    if (selectedAccount) {
+      fetchKvNamespaces();
+    }
+  }, [selectedAccount]);
 
   const handleLogin = async (inputToken: string) => {
     setLoading(true);
@@ -593,7 +649,8 @@ export default function App() {
       alert("Success! A new scoped token has been generated and inserted. You can now click 'Connect Dashboard'.\n\nFor your security, your Global API Key has not been saved.");
     } catch (err: any) {
       console.error("Generate Token Error:", err);
-      alert(`Error generating token: ${err.message}`);
+      const cfError = err.response?.data?.errors?.[0]?.message || err.response?.data || err.message;
+      alert(`Error generating token: ${typeof cfError === 'string' ? cfError : JSON.stringify(cfError)}`);
     } finally {
       setLoading(false);
     }
@@ -1328,7 +1385,7 @@ export default function App() {
                     <Cpu className="w-4 h-4 text-cf-orange" />
                     Select AI Model
                   </h4>
-                  <select 
+                  <select
                     className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-cf-orange/50 transition-all appearance-none cursor-pointer"
                     value={selectedModel}
                     onChange={(e) => {
@@ -1336,16 +1393,77 @@ export default function App() {
                       localStorage.setItem('gemini_model', e.target.value);
                     }}
                   >
-                    <option value="gemini-3-flash-preview" className="bg-dark-card">Gemini 3 Flash Preview</option>
-                    <option value="gemini-3.1-pro-preview" className="bg-dark-card">Gemini 3.1 Pro Preview</option>
-                    <option value="gemini-3.1-flash-lite-preview" className="bg-dark-card">Gemini 3.1 Flash Lite Preview</option>
+                    {availableModels.length > 0 ? (
+                      Object.entries(groupModels(availableModels)).map(([provider, models]) => (
+                        <optgroup key={provider} label={provider} className="bg-dark-card text-cf-orange font-semibold">
+                          {models.map(m => (
+                            <option key={m} value={m} className="bg-dark-card text-white font-normal">{m}</option>
+                          ))}
+                        </optgroup>
+                      ))
+                    ) : (
+                      <>
+                        <optgroup label="Kilo Code" className="bg-dark-card text-cf-orange font-semibold">
+                          <option value="kc/google/gemini-2.5-pro" className="bg-dark-card text-white font-normal">Gemini 2.5 Pro</option>
+                          <option value="kc/google/gemini-2.5-flash" className="bg-dark-card text-white font-normal">Gemini 2.5 Flash</option>
+                        </optgroup>
+                        <optgroup label="Antigravity" className="bg-dark-card text-cf-orange font-semibold">
+                          <option value="ag/gemini-3-flash-agent" className="bg-dark-card text-white font-normal">Gemini 3 Flash Agent</option>
+                        </optgroup>
+                        <optgroup label="Cloudflare" className="bg-dark-card text-cf-orange font-semibold">
+                          <option value="cf/@cf/meta/llama-3.1-8b-instruct-fast" className="bg-dark-card text-white font-normal">Llama 3.1 8B</option>
+                        </optgroup>
+                      </>
+                    )}
                   </select>
                 </div>
 
                 <div>
                   <h4 className="text-sm font-semibold text-white/80 mb-4 flex items-center gap-2">
+                    <Cloud className="w-4 h-4 text-cf-orange" />
+                    Save Key to KV (Optional)
+                  </h4>
+                  <div className="space-y-3">
+                    <select
+                      className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-cf-orange/50 transition-all appearance-none cursor-pointer"
+                      value={selectedKvNamespace}
+                      onChange={(e) => setSelectedKvNamespace(e.target.value)}
+                    >
+                      <option value="" className="bg-dark-card">-- Select KV Namespace --</option>
+                      {kvNamespaces.map((kv) => (
+                        <option key={kv.id} value={kv.id} className="bg-dark-card">{kv.title}</option>
+                      ))}
+                    </select>
+                    <div className="flex gap-2">
+                      <input 
+                        type="password"
+                        placeholder="Key to save in KV..."
+                        className="flex-1 bg-white/5 border border-white/10 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-cf-orange/50 transition-all"
+                        id="kv-key-input"
+                      />
+                      <Button size="sm" onClick={async () => {
+                        const val = (document.getElementById('kv-key-input') as HTMLInputElement)?.value;
+                        if (!selectedAccount || !selectedKvNamespace || !val) {
+                          alert("Select account, namespace and enter key");
+                          return;
+                        }
+                        try {
+                          await cf.writeKvValue(selectedAccount.id, selectedKvNamespace, 'AIMHC_API_KEY', val);
+                          alert("Key saved to KV successfully!");
+                        } catch (err) {
+                          alert("Failed to save to KV");
+                        }
+                      }}>
+                        Save to KV
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+
+                <div>
+                  <h4 className="text-sm font-semibold text-white/80 mb-4 flex items-center gap-2">
                     <Plus className="w-4 h-4 text-cf-orange" />
-                    Add New Gemini Key
+                    Add New AI Key
                   </h4>
                   <div className="space-y-3">
                     <input 
