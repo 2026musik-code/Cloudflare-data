@@ -535,8 +535,12 @@ export default function App() {
                 toolResult = { success: true, message: `R2 bucket ${name} created successfully.` };
               }
             } catch (err: any) {
-              const cfError = err.response?.data?.errors?.[0]?.message || err.response?.data || err.message;
-              toolResult = { success: false, error: typeof cfError === 'string' ? cfError : JSON.stringify(cfError) };
+              let cfError = err.response?.data?.errors?.[0]?.message || err.response?.data || err.message;
+              if (typeof cfError !== 'string') cfError = JSON.stringify(cfError);
+              if (cfError.includes("build token selected for this build has been deleted")) {
+                cfError = `Error: This worker is connected to a GitHub repository (Worker Builds). You cannot deploy directly via API. Tell the user to disconnect it from GitHub in the Cloudflare Dashboard or use a new worker name.`;
+              }
+              toolResult = { success: false, error: cfError };
             }
 
             functionResponses.push({
@@ -618,7 +622,12 @@ export default function App() {
     } catch (err: any) {
       console.error('Save Worker Error:', err);
       const errorMsg = err.response?.data?.errors?.[0]?.message || err.message || "Unknown error";
-      alert(`Error saving worker: ${errorMsg}`);
+      
+      if (errorMsg.includes("build token selected for this build has been deleted")) {
+        alert("Error: This worker is connected to a GitHub repository (Worker Builds).\n\nYou cannot deploy directly via API. Please either disconnect it from GitHub in the Cloudflare Dashboard or create a new worker.");
+      } else {
+        alert(`Error saving worker: ${errorMsg}`);
+      }
     } finally {
       setLoading(false);
     }
