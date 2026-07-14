@@ -63,6 +63,28 @@ const cleanCode = (text: string) => {
     .trim();
 };
 
+const formatAIError = (error: any, contextName: string) => {
+  if (error.response) {
+    if (error.response.status === 530) {
+      return new Error("The AI server is currently offline or unreachable (Error 530). Please try again later.");
+    }
+    const data = error.response.data;
+    let errorMsg = data;
+    if (typeof data === 'string') {
+      try {
+        const parsed = JSON.parse(data);
+        errorMsg = parsed.error?.message || parsed.error || data;
+      } catch(e) {}
+    } else if (data && typeof data === 'object') {
+      errorMsg = data.error?.message || data.error || data.message || JSON.stringify(data);
+    }
+    console.error(`${contextName} API Error [${error.response.status}]:`, errorMsg);
+    return new Error(typeof errorMsg === 'string' ? errorMsg : JSON.stringify(errorMsg));
+  }
+  console.error(`${contextName} Error:`, error.message || error);
+  return error;
+};
+
 export const fetchModels = async (userKey?: string) => {
   try {
     const config = getAIConfig(userKey);
@@ -161,12 +183,7 @@ export const generateWorkerCode = async (prompt: string, userKey?: string, model
     }
     return cleanCode(response.data.choices[0].message.content);
   } catch (error: any) {
-    if (error.response && error.response.status === 530) {
-      console.warn("AI API is currently offline (Cloudflare 530 Argo Tunnel error).");
-      throw new Error("The AI server is currently offline or unreachable (Error 530). Please try again later.");
-    }
-    console.error("Generate Code Error:", error.message || error);
-    throw error;
+    throw formatAIError(error, "Generate Code");
   }
 };
 
@@ -220,12 +237,7 @@ export const analyzeWorker = async (code: string, userKey?: string, model: strin
     }
     return response.data.choices[0].message.content;
   } catch (error: any) {
-    if (error.response && error.response.status === 530) {
-      console.warn("AI API is currently offline (Cloudflare 530 Argo Tunnel error).");
-      throw new Error("The AI server is currently offline or unreachable (Error 530). Please try again later.");
-    }
-    console.error("Analyze Worker Error:", error.message || error);
-    throw error;
+    throw formatAIError(error, "Analyze Worker");
   }
 };
 
@@ -382,12 +394,7 @@ export const chatWithAI = async (
 
     return { candidates, functionCalls, text: assistantMessage.content || "" };
   } catch (error: any) {
-    if (error.response && error.response.status === 530) {
-      console.warn("AI API is currently offline (Cloudflare 530 Argo Tunnel error).");
-      throw new Error("The AI server is currently offline or unreachable (Error 530). Please try again later.");
-    }
-    console.error("Chat Error:", error.message || error);
-    throw error;
+    throw formatAIError(error, "Chat");
   }
 };
 
@@ -439,11 +446,6 @@ export const improveWorkerCode = async (code: string, prompt: string, userKey?: 
     }
     return cleanCode(response.data.choices[0].message.content);
   } catch (error: any) {
-    if (error.response && error.response.status === 530) {
-      console.warn("AI API is currently offline (Cloudflare 530 Argo Tunnel error).");
-      throw new Error("The AI server is currently offline or unreachable (Error 530). Please try again later.");
-    }
-    console.error("Improve Code Error:", error.message || error);
-    throw error;
+    throw formatAIError(error, "Improve Code");
   }
 };
