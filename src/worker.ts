@@ -48,6 +48,35 @@ app.all('/api/cloudflare/*', async (c) => {
   }
 });
 
+// Proxy for Azkha AI API
+app.all('/api/azkha/*', async (c) => {
+  const apiPath = c.req.path.replace('/api/azkha/', '');
+  const url = `https://api.azkhavps.my.id/v1/${apiPath}`;
+  
+  const method = c.req.method;
+  const headers = new Headers();
+  headers.set('Content-Type', c.req.header('Content-Type') || 'application/json');
+  headers.set('User-Agent', 'AIMHC-CLI/1.0');
+  
+  const token = c.req.header('Authorization');
+  if (token) {
+    headers.set('Authorization', token);
+  }
+  
+  const body = method !== 'GET' && method !== 'HEAD' ? await c.req.text() : undefined;
+  
+  const response = await fetch(url, {
+    method,
+    headers,
+    body,
+  });
+  
+  return new Response(response.body, {
+    status: response.status,
+    headers: response.headers
+  });
+});
+
 // Storage API (Example using R2)
 app.get('/api/storage/:key', async (c) => {
   const key = c.req.param('key');
