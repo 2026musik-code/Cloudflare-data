@@ -111,6 +111,9 @@ export const generateWorkerCode = async (prompt: string, userKey?: string, model
       temperature: 0.5
     }, config);
     
+    if (!response.data.choices || !response.data.choices[0]) {
+      throw new Error(`API returned unexpected format: ${JSON.stringify(response.data)}`);
+    }
     return cleanCode(response.data.choices[0].message.content);
   } catch (error: any) {
     if (error.response && error.response.status === 530) {
@@ -153,6 +156,9 @@ export const analyzeWorker = async (code: string, userKey?: string, model: strin
         }
       ]
     }, config);
+    if (!response.data.choices || !response.data.choices[0]) {
+      throw new Error(`API returned unexpected format: ${JSON.stringify(response.data)}`);
+    }
     return response.data.choices[0].message.content;
   } catch (error: any) {
     if (error.response && error.response.status === 530) {
@@ -266,6 +272,9 @@ export const chatWithAI = async (
       temperature: 0.5
     }, config);
 
+    if (!response.data.choices || !response.data.choices[0]) {
+      throw new Error(`API returned unexpected format: ${JSON.stringify(response.data)}`);
+    }
     const choice = response.data.choices[0];
     const assistantMessage = choice.message;
 
@@ -326,6 +335,9 @@ export const improveWorkerCode = async (code: string, prompt: string, userKey?: 
       ],
       temperature: 0.5
     }, config);
+    if (!response.data.choices || !response.data.choices[0]) {
+      throw new Error(`API returned unexpected format: ${JSON.stringify(response.data)}`);
+    }
     return cleanCode(response.data.choices[0].message.content);
   } catch (error: any) {
     if (error.response && error.response.status === 530) {
