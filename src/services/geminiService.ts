@@ -5,7 +5,7 @@ let currentKey: string | null = null;
 const getAIConfig = (userKey?: string) => {
   const key = (userKey && userKey.trim() !== "") 
     ? userKey 
-    : localStorage.getItem('gemini_api_key') || "sk-6sthp8E8Nw2aQPJK5Tha7TukyLx6zNUr2SZ5UD9vxbGbZ7aR";
+    : localStorage.getItem('gemini_api_key') || "";
   
   if (!key) {
     throw new Error("API Key is missing. Please set it in Settings.");
