@@ -570,7 +570,7 @@ export default function App() {
       const errorDetail = err.message || "Unknown error";
       setAiMessages(prev => [...prev, { 
         role: 'ai', 
-        content: `Sorry, I encountered an error: **${errorDetail}**. Please check your Gemini API Key in Settings and ensure it has access to the selected model (${selectedModel}).` 
+        content: `Sorry, I encountered an error: **${errorDetail}**. Please check your AI API Key in Settings and ensure it has access to the selected model (${selectedModel}).` 
       }]);
     } finally {
       setAiLoading(false);
@@ -599,7 +599,7 @@ export default function App() {
       const errorMsg = err.response?.data?.errors?.[0]?.message || err.message || "Unknown error";
       setAiMessages(prev => [...prev, { 
         role: 'ai', 
-        content: `**Error analyzing worker:** ${errorMsg}\n\nThis usually happens if:\n1. The API Token lacks "Account.Workers Scripts: Read" permission.\n2. The worker script is too large for the AI context.\n3. There was a network issue with Cloudflare.\n4. Your Gemini API Key is invalid.` 
+        content: `**Error analyzing worker:** ${errorMsg}\n\nThis usually happens if:\n1. The API Token lacks "Account.Workers Scripts: Read" permission.\n2. The worker script is too large for the AI context.\n3. There was a network issue with Cloudflare.\n4. Your AI API Key is invalid.` 
       }]);
     } finally {
       setAiLoading(false);
@@ -1220,7 +1220,7 @@ export default function App() {
                 {aiLoading && (
                   <div className="flex items-center gap-2 text-white/40 text-xs italic">
                     <Loader2 className="w-3 h-3 animate-spin" />
-                    Gemini is thinking...
+                    AI is thinking...
                   </div>
                 )}
               </div>
