@@ -20,6 +20,17 @@ const getAIConfig = (userKey?: string) => {
   };
 };
 
+const parseData = (data: any) => {
+  if (typeof data === 'string') {
+    try {
+      return JSON.parse(data.trim());
+    } catch (e) {
+      console.warn("Failed to parse AI response data", e);
+    }
+  }
+  return data;
+};
+
 const cleanCode = (text: string) => {
   const codeBlockRegex = /```(?:javascript|js|typescript|ts|html)?\s*([\s\S]*?)```/i;
   const match = text.match(codeBlockRegex);
@@ -37,6 +48,7 @@ export const fetchModels = async (userKey?: string) => {
   try {
     const config = getAIConfig(userKey);
     const response = await axios.get('/api/azkha/models', config);
+    response.data = parseData(response.data);
     return response.data.data.map((m: any) => m.id);
   } catch (error: any) {
     // Only log the message to avoid huge stack traces in the console,
@@ -111,6 +123,7 @@ export const generateWorkerCode = async (prompt: string, userKey?: string, model
       temperature: 0.5
     }, config);
     
+    response.data = parseData(response.data);
     if (!response.data.choices || !response.data.choices[0]) {
       throw new Error(`API returned unexpected format: ${JSON.stringify(response.data)}`);
     }
@@ -137,6 +150,7 @@ export const validateKey = async (key: string) => {
         'Content-Type': 'application/json'
       }
     });
+    response.data = parseData(response.data);
     return !!response.data.choices;
   } catch (error) {
     console.error("Key validation failed:", error);
@@ -156,6 +170,7 @@ export const analyzeWorker = async (code: string, userKey?: string, model: strin
         }
       ]
     }, config);
+    response.data = parseData(response.data);
     if (!response.data.choices || !response.data.choices[0]) {
       throw new Error(`API returned unexpected format: ${JSON.stringify(response.data)}`);
     }
@@ -272,6 +287,7 @@ export const chatWithAI = async (
       temperature: 0.5
     }, config);
 
+    response.data = parseData(response.data);
     if (!response.data.choices || !response.data.choices[0]) {
       throw new Error(`API returned unexpected format: ${JSON.stringify(response.data)}`);
     }
@@ -335,6 +351,7 @@ export const improveWorkerCode = async (code: string, prompt: string, userKey?: 
       ],
       temperature: 0.5
     }, config);
+    response.data = parseData(response.data);
     if (!response.data.choices || !response.data.choices[0]) {
       throw new Error(`API returned unexpected format: ${JSON.stringify(response.data)}`);
     }
