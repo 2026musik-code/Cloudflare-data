@@ -118,7 +118,7 @@ export const fetchModels = async (userKey?: string) => {
 export const generateWorkerCode = async (prompt: string, userKey?: string, model: string = "kc/google/gemini-2.5-pro") => {
   try {
     const config = getAIConfig(userKey);
-    const response = await axios.post('/api/azkha/chat/completions', {
+    const payload = {
       model,
       messages: [
         {
@@ -140,7 +140,20 @@ export const generateWorkerCode = async (prompt: string, userKey?: string, model
         { role: "user", content: prompt }
       ],
       temperature: 0.5
-    }, config);
+    };
+
+    let response;
+    try {
+      response = await axios.post('/api/azkha/chat/completions', payload, config);
+    } catch (err: any) {
+      if (err.response && err.response.status === 400) {
+        console.warn("Model might not support system role. Retrying with user role...");
+        payload.messages = payload.messages.map((m: any) => m.role === 'system' ? { ...m, role: 'user' } : m);
+        response = await axios.post('/api/azkha/chat/completions', payload, config);
+      } else {
+        throw err;
+      }
+    }
     
     response.data = parseData(response.data);
     if (!response.data.choices || !response.data.choices[0]) {
@@ -180,7 +193,7 @@ export const validateKey = async (key: string) => {
 export const analyzeWorker = async (code: string, userKey?: string, model: string = "kc/google/gemini-2.5-pro") => {
   try {
     const config = getAIConfig(userKey);
-    const response = await axios.post('/api/azkha/chat/completions', {
+    const payload = {
       model,
       messages: [
         {
@@ -188,7 +201,19 @@ export const analyzeWorker = async (code: string, userKey?: string, model: strin
           content: `Analyze this Cloudflare Worker code for security, performance, and best practices:\n\n${code}\n\nProvide a concise summary and suggestions.`
         }
       ]
-    }, config);
+    };
+    
+    let response;
+    try {
+      response = await axios.post('/api/azkha/chat/completions', payload, config);
+    } catch (err: any) {
+      if (err.response && err.response.status === 400) {
+        console.warn("Model might not support something in payload. Retrying fallback...");
+        response = await axios.post('/api/azkha/chat/completions', payload, config); // usually won't happen for user role, but let's keep consistency
+      } else {
+        throw err;
+      }
+    }
     response.data = parseData(response.data);
     if (!response.data.choices || !response.data.choices[0]) {
       throw new Error(`API returned unexpected format: ${JSON.stringify(response.data)}`);
@@ -299,12 +324,37 @@ export const chatWithAI = async (
       };
     });
 
-    const response = await axios.post('/api/azkha/chat/completions', {
+    const payload: any = {
       model,
       messages,
-      tools: openAITools,
       temperature: 0.5
-    }, config);
+    };
+    if (openAITools && openAITools.length > 0) {
+      payload.tools = openAITools;
+    }
+    
+    let response;
+    try {
+      response = await axios.post('/api/azkha/chat/completions', payload, config);
+    } catch (err: any) {
+      if (err.response && err.response.status === 400) {
+        console.warn("Model might not support tools. Retrying without tools...");
+        delete payload.tools;
+        try {
+          response = await axios.post('/api/azkha/chat/completions', payload, config);
+        } catch (err2: any) {
+          if (err2.response && err2.response.status === 400) {
+            console.warn("Model might not support system role. Retrying with user role...");
+            payload.messages = payload.messages.map((m: any) => m.role === 'system' ? { ...m, role: 'user' } : m);
+            response = await axios.post('/api/azkha/chat/completions', payload, config);
+          } else {
+            throw err2;
+          }
+        }
+      } else {
+        throw err;
+      }
+    }
 
     response.data = parseData(response.data);
     if (!response.data.choices || !response.data.choices[0]) {
@@ -344,7 +394,7 @@ export const chatWithAI = async (
 export const improveWorkerCode = async (code: string, prompt: string, userKey?: string, model: string = "kc/google/gemini-2.5-pro") => {
   try {
     const config = getAIConfig(userKey);
-    const response = await axios.post('/api/azkha/chat/completions', {
+    const payload = {
       model,
       messages: [
         {
@@ -369,7 +419,20 @@ export const improveWorkerCode = async (code: string, prompt: string, userKey?: 
         { role: "user", content: prompt }
       ],
       temperature: 0.5
-    }, config);
+    };
+
+    let response;
+    try {
+      response = await axios.post('/api/azkha/chat/completions', payload, config);
+    } catch (err: any) {
+      if (err.response && err.response.status === 400) {
+        console.warn("Model might not support system role. Retrying with user role...");
+        payload.messages = payload.messages.map((m: any) => m.role === 'system' ? { ...m, role: 'user' } : m);
+        response = await axios.post('/api/azkha/chat/completions', payload, config);
+      } else {
+        throw err;
+      }
+    }
     response.data = parseData(response.data);
     if (!response.data.choices || !response.data.choices[0]) {
       throw new Error(`API returned unexpected format: ${JSON.stringify(response.data)}`);
