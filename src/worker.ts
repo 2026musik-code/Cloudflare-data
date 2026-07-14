@@ -17,12 +17,26 @@ app.all('/api/cloudflare/*', async (c) => {
   const query = c.req.query();
   const body = method !== 'GET' && method !== 'HEAD' ? await c.req.text() : undefined;
 
+  let rawToken = token.replace(/^(bearer\s+|Bearer\s+)+/i, '').trim();
+  rawToken = rawToken.replace(/^["']|["']$/g, '');
+  
+  const headers: any = {
+    'Content-Type': c.req.header('Content-Type') || 'application/json',
+  };
+
+  if (rawToken.includes(':')) {
+    const parts = rawToken.split(':');
+    const email = parts[0].trim();
+    const key = parts.slice(1).join(':').trim();
+    headers['X-Auth-Email'] = email;
+    headers['X-Auth-Key'] = key;
+  } else {
+    headers['Authorization'] = `Bearer ${rawToken}`;
+  }
+
   const response = await fetch(`${url}${Object.keys(query).length ? '?' + new URLSearchParams(query) : ''}`, {
     method,
-    headers: {
-      'Authorization': token,
-      'Content-Type': c.req.header('Content-Type') || 'application/json',
-    },
+    headers,
     body,
   });
 
