@@ -1052,14 +1052,47 @@ export default function App() {
               transition={{ type: 'spring', damping: 25, stiffness: 200 }}
               className="absolute inset-y-0 right-0 w-full sm:w-96 bg-dark-card border-l border-dark-border shadow-2xl z-[80] flex flex-col"
             >
-              <div className="p-6 border-b border-dark-border flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <Sparkles className="w-5 h-5 text-cf-orange" />
-                  <h3 className="font-bold">AI Assistant</h3>
+              <div className="p-6 border-b border-dark-border flex flex-col gap-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Sparkles className="w-5 h-5 text-cf-orange" />
+                    <h3 className="font-bold">AI Assistant</h3>
+                  </div>
+                  <button onClick={() => setAiOpen(false)} className="p-2 hover:bg-white/5 rounded-full">
+                    <X className="w-5 h-5" />
+                  </button>
                 </div>
-                <button onClick={() => setAiOpen(false)} className="p-2 hover:bg-white/5 rounded-full">
-                  <X className="w-5 h-5" />
-                </button>
+                <select
+                  className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-cf-orange/50 transition-all appearance-none cursor-pointer"
+                  value={selectedModel}
+                  onChange={(e) => {
+                    setSelectedModel(e.target.value);
+                    localStorage.setItem('gemini_model', e.target.value);
+                  }}
+                >
+                  {availableModels.length > 0 ? (
+                    Object.entries(groupModels(availableModels)).map(([provider, models]) => (
+                      <optgroup key={provider} label={provider} className="bg-dark-card text-cf-orange font-semibold">
+                        {models.map(m => (
+                          <option key={m} value={m} className="bg-dark-card text-white font-normal">{m}</option>
+                        ))}
+                      </optgroup>
+                    ))
+                  ) : (
+                    <>
+                      <optgroup label="Kilo Code" className="bg-dark-card text-cf-orange font-semibold">
+                        <option value="kc/google/gemini-2.5-pro" className="bg-dark-card text-white font-normal">Gemini 2.5 Pro</option>
+                        <option value="kc/google/gemini-2.5-flash" className="bg-dark-card text-white font-normal">Gemini 2.5 Flash</option>
+                      </optgroup>
+                      <optgroup label="Antigravity" className="bg-dark-card text-cf-orange font-semibold">
+                        <option value="ag/gemini-3-flash-agent" className="bg-dark-card text-white font-normal">Gemini 3 Flash Agent</option>
+                      </optgroup>
+                      <optgroup label="Cloudflare" className="bg-dark-card text-cf-orange font-semibold">
+                        <option value="cf/@cf/meta/llama-3.1-8b-instruct-fast" className="bg-dark-card text-white font-normal">Llama 3.1 8B</option>
+                      </optgroup>
+                    </>
+                  )}
+                </select>
               </div>
 
               <div className="flex-1 overflow-y-auto p-6 space-y-4 scrollbar-hide">

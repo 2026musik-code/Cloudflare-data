@@ -22,14 +22,28 @@ const getAIConfig = (userKey?: string) => {
 
 const parseData = (data: any) => {
   if (typeof data === 'string') {
+    let clean = data.trim();
+    clean = clean.replace(/^[\s\n]+/, '');
+    
     try {
-      const start = data.indexOf('{');
-      const end = data.lastIndexOf('}');
-      if (start !== -1 && end !== -1 && end >= start) {
-        return JSON.parse(data.substring(start, end + 1));
-      }
-      return JSON.parse(data.trim());
+      return JSON.parse(clean);
     } catch (e) {
+      // Progressive parser to extract the first valid JSON object
+      let braceCount = 0;
+      let startIndex = clean.indexOf('{');
+      if (startIndex !== -1) {
+          for (let i = startIndex; i < clean.length; i++) {
+              if (clean[i] === '{') braceCount++;
+              if (clean[i] === '}') braceCount--;
+              if (braceCount === 0) {
+                  try {
+                      return JSON.parse(clean.substring(startIndex, i + 1));
+                  } catch (err) {
+                      break;
+                  }
+              }
+          }
+      }
       console.warn("Failed to parse AI response data", e);
     }
   }
